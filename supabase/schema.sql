@@ -155,7 +155,5 @@ ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE timeline_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
--- Contoh Kebijakan Multi-Tenant:
--- Hanya anggota organisasi yang sama yang boleh melihat data proyek organisasi tersebut
-CREATE POLICY org_select_policy ON wedding_projects
-    FOR SELECT USING (org_id::text = auth.jwt() ->> 'org_id');
+-- Kebijakan RLS lengkap untuk semua tabel ada di file: supabase/rls-policies.sql
+-- Jalankan file tersebut setelah schema ini untuk mengaktifkan policies.
