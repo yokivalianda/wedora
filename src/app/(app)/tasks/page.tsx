@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/layout/AppLayout";
 import { mockUsers } from "@/lib/mock-data";
 import { Task, WeddingProject } from "@/types";
-import { taskService, projectService } from "@/lib/services";
+import { taskService, projectService, activityService } from "@/lib/services";
 import { 
   TASK_PRIORITY_LABELS, 
   TASK_PRIORITY_COLORS, 
@@ -75,6 +75,18 @@ export default function TasksPage() {
 
     taskService.create(newTask).then((saved) => {
       setTasks((prev) => [saved, ...prev]);
+
+      // Log activity
+      activityService.create({
+        id: `act-${Date.now()}`,
+        org_id: "org-001",
+        user_id: "user-001",
+        user_name: "Pengguna",
+        action: "menambahkan tugas baru",
+        entity_type: "task",
+        entity_name: saved.title,
+        created_at: new Date().toISOString()
+      }).catch(console.warn);
     });
 
     // Reset Form

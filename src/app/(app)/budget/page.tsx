@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/layout/AppLayout";
 import { Payment, WeddingProject } from "@/types";
-import { paymentService, projectService } from "@/lib/services";
+import { paymentService, projectService, activityService } from "@/lib/services";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { DollarSign, Clock, CheckCircle, AlertCircle, Plus, Receipt, X, Sparkles, Trash2 } from "lucide-react";
 
@@ -57,6 +57,18 @@ export default function BudgetPage() {
 
     paymentService.create(newPayment).then((saved) => {
       setPayments((prev) => [saved, ...prev]);
+
+      // Log activity
+      activityService.create({
+        id: `act-${Date.now()}`,
+        org_id: "org-001",
+        user_id: "user-001",
+        user_name: "Pengguna",
+        action: "mencatat transaksi baru",
+        entity_type: "payment",
+        entity_name: saved.notes || "Transaksi",
+        created_at: new Date().toISOString()
+      }).catch(console.warn);
     });
 
     // Reset Form

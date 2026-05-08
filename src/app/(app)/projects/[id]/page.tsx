@@ -5,9 +5,9 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/layout/AppLayout";
-import { mockTimeline, mockUsers } from "@/lib/mock-data";
-import { projectService, taskService, paymentService } from "@/lib/services";
-import { WeddingProject, Task, Payment } from "@/types";
+import { mockUsers } from "@/lib/mock-data";
+import { projectService, taskService, paymentService, timelineService } from "@/lib/services";
+import { WeddingProject, Task, Payment, TimelineEvent } from "@/types";
 import { 
   formatCurrency, 
   formatDate, 
@@ -31,7 +31,8 @@ import {
   Sparkles,
   Info,
   Receipt,
-  UserCheck
+  UserCheck,
+  Trash2
 } from "lucide-react";
 
 export default function ProjectDetailPage() {
@@ -41,6 +42,7 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<WeddingProject | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Active sub-tab
@@ -52,11 +54,13 @@ export default function ProjectDetailPage() {
     Promise.all([
       projectService.getById(id),
       taskService.getAll(),
-      paymentService.getAll()
-    ]).then(([projData, taskData, payData]) => {
+      paymentService.getAll(),
+      timelineService.getAll(id)
+    ]).then(([projData, taskData, payData, timelineData]) => {
       setProject(projData);
       setTasks(taskData.filter((t) => t.project_id === id));
       setPayments(payData.filter((p) => p.project_id === id));
+      setTimelineEvents(timelineData);
       setLoading(false);
     });
   }, [id]);
@@ -105,6 +109,14 @@ export default function ProjectDetailPage() {
     });
   };
 
+  // Handle deleting timeline events
+  const handleDeleteTimeline = (eventId: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus jadwal ini?")) return;
+    timelineService.delete(eventId).then(() => {
+      setTimelineEvents((prev) => prev.filter((e) => e.id !== eventId));
+    });
+  };
+
   // Scoped Payments
   const finalPayments = payments;
 
@@ -117,8 +129,7 @@ export default function ProjectDetailPage() {
     .reduce((sum, p) => sum + p.amount, 0);
 
   // Scoped Timeline
-  const projectTimeline = mockTimeline.filter((t) => t.project_id === id);
-  const finalTimeline = projectTimeline;
+  const finalTimeline = timelineEvents.sort((a, b) => a.time.localeCompare(b.time));
 
   // Budget progress
   const progress = calculateProgress(project.budget_used, project.budget_total);
@@ -326,10 +337,19 @@ export default function ProjectDetailPage() {
                           <div className="rounded-xl border border-[#ECE7E1] bg-white p-5 shadow-soft hover:shadow-card transition-all space-y-2">
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#ECE7E1]/50 pb-2">
                               <h4 className="font-heading text-sm font-bold text-[#1E1E1E]">{item.title}</h4>
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[#FAF7F2] border border-[#ECE7E1] px-2.5 py-0.5 text-[10px] font-semibold text-[#1E1E1E]">
-                                <Clock className="h-3 w-3 text-[#D4AF37]" />
-                                <span>{item.time} WIB</span>
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-[#FAF7F2] border border-[#ECE7E1] px-2.5 py-0.5 text-[10px] font-semibold text-[#1E1E1E]">
+                                  <Clock className="h-3 w-3 text-[#D4AF37]" />
+                                  <span>{item.time} WIB</span>
+                                </span>
+                                <button
+                                  onClick={() => handleDeleteTimeline(item.id)}
+                                  className="text-[#666666] hover:text-rose-500 transition-colors"
+                                  title="Hapus Jadwal"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
                             </div>
                             <p className="text-xs text-[#666666] leading-relaxed">{item.description}</p>
                             <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-[#666666] font-medium pt-1">

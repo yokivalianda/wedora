@@ -4,10 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import AppLayout from "@/components/layout/AppLayout";
 import {
-  mockActivities
-} from "@/lib/mock-data";
-import { isDemoAccount } from "@/lib/demo";
-import {
   formatCurrency,
   formatDate,
   PROJECT_STATUS_LABELS,
@@ -29,8 +25,8 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
-import { projectService, taskService, paymentService } from "@/lib/services";
-import { WeddingProject, Task, Payment } from "@/types";
+import { projectService, taskService, paymentService, activityService } from "@/lib/services";
+import { WeddingProject, Task, Payment, Activity } from "@/types";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -38,18 +34,21 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<WeddingProject[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       projectService.getAll(),
       taskService.getAll(),
-      paymentService.getAll()
+      paymentService.getAll(),
+      activityService.getAll()
     ])
-      .then(([projectsData, tasksData, paymentsData]) => {
+      .then(([projectsData, tasksData, paymentsData, activitiesData]) => {
         setProjects(projectsData || []);
         setTasks(tasksData || []);
         setPayments(paymentsData || []);
+        setActivities(activitiesData || []);
         setLoading(false);
       })
       .catch((err) => {
@@ -88,8 +87,6 @@ export default function DashboardPage() {
   const pendingTasks = tasks
     .filter((t) => t.status !== "done")
     .slice(0, 4);
-
-  const activities = isDemoAccount() ? mockActivities : [];
 
   return (
     <AppLayout>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/layout/AppLayout";
 import { WeddingProject } from "@/types";
-import { projectService } from "@/lib/services";
+import { projectService, activityService } from "@/lib/services";
 import {
   formatCurrency,
   formatDate,
@@ -14,8 +14,10 @@ import {
   calculateProgress
 } from "@/lib/utils";
 import { Calendar, Users, Plus, ChevronRight, MapPin, Search, X, Sparkles, DollarSign, ListTodo, Trash2 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 export default function ProjectsView() {
+  const { user } = useAuth();
   const [projects, setProjects] = useState<WeddingProject[]>([]);
   const [activeTab, setActiveTab] = useState<"semua" | "inquiry" | "planning" | "dp_paid" | "in_progress" | "completed">("semua");
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,6 +78,18 @@ export default function ProjectsView() {
     try {
       const saved = await projectService.create(newProject);
       setProjects((prev) => [saved, ...prev]);
+
+      // Log activity
+      activityService.create({
+        id: `act-${Date.now()}`,
+        org_id: "org-001",
+        user_id: "user-001",
+        user_name: user?.name || "Pengguna",
+        action: "menambahkan proyek baru",
+        entity_type: "project",
+        entity_name: `${saved.bride_name} & ${saved.groom_name}`,
+        created_at: new Date().toISOString()
+      }).catch(console.warn);
 
       // Reset Form & close modal only on success
       setBrideName("");
