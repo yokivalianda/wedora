@@ -58,7 +58,7 @@ export const projectService = {
         console.warn("Failed to fetch from Supabase:", err);
       }
     }
-    return mergeWithLocal(supabaseData, "wedora_projects", []);
+    return mergeWithLocal(supabaseData, "wedora_projects", mockProjects);
   },
 
   async getById(id: string): Promise<WeddingProject | null> {
@@ -230,7 +230,7 @@ export const taskService = {
         console.warn("Failed to fetch tasks from Supabase:", err);
       }
     }
-    return mergeWithLocal(supabaseData, "wedora_tasks", []);
+    return mergeWithLocal(supabaseData, "wedora_tasks", mockTasks);
   },
 
   async create(task: Task): Promise<Task> {
@@ -411,7 +411,7 @@ export const paymentService = {
         console.warn("Failed to fetch payments from Supabase:", err);
       }
     }
-    return mergeWithLocal(supabaseData, "wedora_payments", []);
+    return mergeWithLocal(supabaseData, "wedora_payments", mockPayments);
   },
 
   async create(payment: Payment): Promise<Payment> {
@@ -548,7 +548,7 @@ export const vendorService = {
         console.warn("Failed to fetch vendors from Supabase:", err);
       }
     }
-    return mergeWithLocal(supabaseData, "wedora_vendors", []);
+    return mergeWithLocal(supabaseData, "wedora_vendors", mockVendors);
   },
 
   async create(vendor: Vendor): Promise<Vendor> {
