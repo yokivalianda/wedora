@@ -113,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password === demoPassword
       ) {
         const demoUser: UserProfile = {
-          name: "Yoki Valianda",
+          name: "Demo",
           email: demoEmail,
           orgName: "Amara Wedding Organizer",
           location: "Palembang",

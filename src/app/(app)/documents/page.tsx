@@ -3,15 +3,25 @@
 import AppLayout from "@/components/layout/AppLayout";
 import { FolderOpen, FileText, Image as ImageIcon, Plus, ArrowUpRight, Search } from "lucide-react";
 import { useState } from "react";
-
-const mockDocuments: any[] = [];
+import { isDemoAccount } from "@/lib/demo";
+import { mockDocuments as mockDocumentsData } from "@/lib/mock-data";
 
 export default function DocumentsPage() {
   const [search, setSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState<"all" | "Kontrak" | "Moodboard & Foto" | "Invoice">("all");
 
-  const filteredDocs = mockDocuments.filter((doc) =>
-    doc.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const documents = isDemoAccount() ? mockDocumentsData : [];
+
+  const filteredDocs = documents
+    .filter((doc) => activeFilter === "all" || doc.category === activeFilter)
+    .filter((doc) => doc.name.toLowerCase().includes(search.toLowerCase()));
+
+  const filters = [
+    { label: "Semua Berkas", value: "all" as const },
+    { label: "Kontrak", value: "Kontrak" as const },
+    { label: "Moodboard & Foto", value: "Moodboard & Foto" as const },
+    { label: "Invoice", value: "Invoice" as const },
+  ];
 
   return (
     <AppLayout>
@@ -31,18 +41,19 @@ export default function DocumentsPage() {
         {/* Filter Navigation & Search Bar */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#ECE7E1] pb-4">
           <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
-            <button className="rounded-full bg-[#1E1E1E] text-white px-4 py-2 text-xs font-semibold shadow-sm whitespace-nowrap">
-              Semua Berkas
-            </button>
-            <button className="rounded-full text-[#666666] hover:bg-white hover:text-[#1E1E1E] px-4 py-2 text-xs font-semibold whitespace-nowrap">
-              Kontrak
-            </button>
-            <button className="rounded-full text-[#666666] hover:bg-white hover:text-[#1E1E1E] px-4 py-2 text-xs font-semibold whitespace-nowrap">
-              Moodboard & Foto
-            </button>
-            <button className="rounded-full text-[#666666] hover:bg-white hover:text-[#1E1E1E] px-4 py-2 text-xs font-semibold whitespace-nowrap">
-              Invoice
-            </button>
+            {filters.map((filter) => (
+              <button
+                key={filter.value}
+                onClick={() => setActiveFilter(filter.value)}
+                className={`rounded-full px-4 py-2 text-xs font-semibold whitespace-nowrap ${
+                  activeFilter === filter.value
+                    ? "bg-[#1E1E1E] text-white shadow-sm"
+                    : "text-[#666666] hover:bg-white hover:text-[#1E1E1E]"
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
           </div>
 
           <div className="relative w-full lg:max-w-xs">
