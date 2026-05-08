@@ -38,8 +38,15 @@ export default function CalendarPage() {
         setSelectedProjectId(defaultProject.id);
       }
     });
-    timelineService.getAll().then(setTimelineEvents);
   }, []);
+
+  useEffect(() => {
+    if (selectedProjectId) {
+      timelineService.getAll(selectedProjectId).then(setTimelineEvents);
+    } else {
+      timelineService.getAll().then(setTimelineEvents);
+    }
+  }, [selectedProjectId]);
 
   const weddingProject = projects.find((p) => p.id === selectedProjectId) || projects[0];
 
@@ -66,27 +73,30 @@ export default function CalendarPage() {
     timelineService.create(newEvent).then((saved) => {
       setTimelineEvents((prev) => [...prev, saved]);
 
+      // Reset form
+      setTitle("");
+      setDescription("");
+      setTime("");
+      setLocation("");
+      setPic("");
+      setCategory("preparation");
+      setIsAddModalOpen(false);
+
       // Log activity
       activityService.create({
         id: `act-${Date.now()}`,
-        org_id: "org-001",
-        user_id: "user-001",
+        org_id: null,
+        user_id: null,
         user_name: user?.name || "Pengguna",
         action: "menambahkan jadwal baru",
         entity_type: "timeline",
         entity_name: saved.title,
         created_at: new Date().toISOString()
       }).catch(console.warn);
+    }).catch((err) => {
+      alert("Gagal menyimpan data. Silakan coba lagi.");
+      console.error(err);
     });
-
-    // Reset form
-    setTitle("");
-    setDescription("");
-    setTime("");
-    setLocation("");
-    setPic("");
-    setCategory("preparation");
-    setIsAddModalOpen(false);
   };
 
   const handleDelete = (id: string) => {
@@ -98,8 +108,8 @@ export default function CalendarPage() {
       // Log activity
       activityService.create({
         id: `act-${Date.now()}`,
-        org_id: "org-001",
-        user_id: "user-001",
+        org_id: null,
+        user_id: null,
         user_name: user?.name || "Pengguna",
         action: "menghapus jadwal",
         entity_type: "timeline",

@@ -179,8 +179,8 @@ export interface Notification {
 
 export interface Activity {
   id: string;
-  org_id: string;
-  user_id: string;
+  org_id: string | null;
+  user_id: string | null;
   user_name: string;
   user_avatar?: string;
   action: string;

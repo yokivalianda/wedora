@@ -82,8 +82,8 @@ export default function ProjectsView() {
       // Log activity
       activityService.create({
         id: `act-${Date.now()}`,
-        org_id: "org-001",
-        user_id: "user-001",
+        org_id: null,
+        user_id: null,
         user_name: user?.name || "Pengguna",
         action: "menambahkan proyek baru",
         entity_type: "project",

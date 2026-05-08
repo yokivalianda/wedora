@@ -42,6 +42,18 @@ export default function BudgetPage() {
     paymentService.update(id, { status: "dibayar", payment_date: new Date().toISOString().split("T")[0] }).then((updated) => {
       if (updated) {
         setPayments((prev) => prev.map((p) => (p.id === id ? updated : p)));
+
+        const linkedProject = projects.find(pro => pro.id === updated.project_id);
+        activityService.create({
+          id: `act-${Date.now()}`,
+          org_id: null,
+          user_id: null,
+          user_name: "Pengguna",
+          action: "menandai pembayaran lunas",
+          entity_type: "payment",
+          entity_name: updated.notes || (linkedProject ? `Pembayaran ${linkedProject.bride_name} & ${linkedProject.groom_name}` : "Pembayaran"),
+          created_at: new Date().toISOString()
+        }).catch(console.warn);
       }
     });
   };
@@ -69,8 +81,8 @@ export default function BudgetPage() {
       // Log activity
       activityService.create({
         id: `act-${Date.now()}`,
-        org_id: "org-001",
-        user_id: "user-001",
+        org_id: null,
+        user_id: null,
         user_name: "Pengguna",
         action: "mencatat transaksi baru",
         entity_type: "payment",

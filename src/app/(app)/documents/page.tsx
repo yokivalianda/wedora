@@ -63,16 +63,19 @@ export default function DocumentsPage() {
 
     documentService.create(newDoc).then((saved) => {
       setDocuments((prev) => [saved, ...prev]);
-    });
 
-    // Reset Form
-    setName("");
-    setDocType("dokumen");
-    setCategory("Kontrak");
-    setUrl("");
-    setSize("");
-    setProjectId("");
-    setIsAddModalOpen(false);
+      // Reset Form
+      setName("");
+      setDocType("dokumen");
+      setCategory("Kontrak");
+      setUrl("");
+      setSize("");
+      setProjectId("");
+      setIsAddModalOpen(false);
+    }).catch((err) => {
+      alert("Gagal menyimpan data. Silakan coba lagi.");
+      console.error(err);
+    });
   };
 
   const handleDelete = (id: string) => {
