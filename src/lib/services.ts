@@ -323,6 +323,7 @@ export const taskService = {
             project_id: task.project_id || null,
             title: task.title,
             description: task.description || null,
+            assignee_name: task.assignee_name || null,
             due_date: task.due_date || null,
             status: task.status,
             priority: task.priority,
@@ -418,6 +419,7 @@ export const taskService = {
         const updateData: any = {};
         if (task.title !== undefined) updateData.title = task.title;
         if (task.description !== undefined) updateData.description = task.description;
+        if (task.assignee_name !== undefined) updateData.assignee_name = task.assignee_name;
         if (task.due_date !== undefined) updateData.due_date = task.due_date;
         if (task.status !== undefined) updateData.status = task.status;
         if (task.priority !== undefined) updateData.priority = task.priority;

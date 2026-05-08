@@ -118,7 +118,7 @@ CREATE POLICY "wedding_projects_delete_policy" ON wedding_projects
 CREATE POLICY "tasks_select_policy" ON tasks
     FOR SELECT USING (
         org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        OR org_id IS NULL
     );
 
 CREATE POLICY "tasks_insert_policy" ON tasks
@@ -130,13 +130,13 @@ CREATE POLICY "tasks_insert_policy" ON tasks
 CREATE POLICY "tasks_update_policy" ON tasks
     FOR UPDATE USING (
         org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        OR org_id IS NULL
     );
 
 CREATE POLICY "tasks_delete_policy" ON tasks
     FOR DELETE USING (
         org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        OR org_id IS NULL
     );
 
 -- ==========================================

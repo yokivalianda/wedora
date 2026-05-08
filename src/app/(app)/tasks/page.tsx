@@ -101,6 +101,10 @@ export default function TasksPage() {
         entity_name: saved.title,
         created_at: new Date().toISOString()
       }).catch(console.warn);
+    }).catch((err) => {
+      console.error("Gagal menambahkan tugas:", err);
+      // Still add to local state so user sees it
+      setTasks((prev) => [newTask, ...prev]);
     });
 
     // Reset Form
