@@ -1,21 +1,17 @@
 -- ==========================================
 -- Wedora SaaS — Row Level Security (RLS) Policies
 -- ==========================================
--- File ini berisi semua kebijakan RLS untuk mengamankan akses data
--- berdasarkan organisasi pengguna (multi-tenant isolation).
---
 -- Prasyarat:
 -- - Supabase Auth aktif, auth.uid() mengembalikan UUID user yang login
 -- - Tabel `users` menghubungkan auth user ke organisasi via org_id
 -- - Semua tabel data memiliki kolom org_id (kecuali notifications yang pakai user_id)
 --
--- Catatan tentang NULL org_id:
--- - Ketika user baru mendaftar tapi belum onboarding (belum punya org),
---   get_user_org_id() mengembalikan NULL.
--- - Dalam PostgreSQL, NULL = NULL menghasilkan NULL (bukan TRUE),
---   jadi kita perlu menangani kasus ini secara eksplisit dengan IS NULL.
--- - User tanpa org hanya bisa melihat data yang juga memiliki org_id IS NULL.
---   Ini mencegah kebocoran data antar user yang belum onboarding.
+-- PENTING tentang isolasi data:
+-- - User HANYA bisa melihat data milik org_id mereka sendiri
+-- - Jika user belum onboarding (org_id NULL), mereka TIDAK bisa melihat data
+--   milik user lain yang juga org_id NULL
+-- - Kita gunakan created_by pattern implisit: data tanpa org hanya bisa diakses
+--   oleh user yang memilikinya (ditangani di level aplikasi via localStorage)
 -- ==========================================
 
 -- ==========================================
@@ -28,7 +24,7 @@ RETURNS UUID AS $$
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 -- ==========================================
--- 1. ORGANIZATIONS — Kebijakan akses organisasi
+-- 1. ORGANIZATIONS
 -- ==========================================
 
 CREATE POLICY "organizations_select_policy" ON organizations
@@ -52,7 +48,7 @@ CREATE POLICY "organizations_delete_policy" ON organizations
     );
 
 -- ==========================================
--- 2. USERS — Kebijakan akses data pengguna
+-- 2. USERS
 -- ==========================================
 
 CREATE POLICY "users_select_policy" ON users
@@ -64,8 +60,6 @@ CREATE POLICY "users_select_policy" ON users
 CREATE POLICY "users_insert_policy" ON users
     FOR INSERT WITH CHECK (
         id = auth.uid()
-        OR org_id = public.get_user_org_id()
-        OR org_id IS NULL
     );
 
 CREATE POLICY "users_update_policy" ON users
@@ -79,13 +73,12 @@ CREATE POLICY "users_delete_policy" ON users
     );
 
 -- ==========================================
--- 3. WEDDING_PROJECTS — Kebijakan akses proyek pernikahan
+-- 3. WEDDING_PROJECTS
 -- ==========================================
 
 CREATE POLICY "wedding_projects_select_policy" ON wedding_projects
     FOR SELECT USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "wedding_projects_insert_policy" ON wedding_projects
@@ -96,24 +89,21 @@ CREATE POLICY "wedding_projects_insert_policy" ON wedding_projects
 
 CREATE POLICY "wedding_projects_update_policy" ON wedding_projects
     FOR UPDATE USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "wedding_projects_delete_policy" ON wedding_projects
     FOR DELETE USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 -- ==========================================
--- 4. TASKS — Kebijakan akses tugas/checklist
+-- 4. TASKS
 -- ==========================================
 
 CREATE POLICY "tasks_select_policy" ON tasks
     FOR SELECT USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "tasks_insert_policy" ON tasks
@@ -124,24 +114,21 @@ CREATE POLICY "tasks_insert_policy" ON tasks
 
 CREATE POLICY "tasks_update_policy" ON tasks
     FOR UPDATE USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "tasks_delete_policy" ON tasks
     FOR DELETE USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 -- ==========================================
--- 5. PAYMENTS — Kebijakan akses pembayaran/keuangan
+-- 5. PAYMENTS
 -- ==========================================
 
 CREATE POLICY "payments_select_policy" ON payments
     FOR SELECT USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "payments_insert_policy" ON payments
@@ -152,24 +139,21 @@ CREATE POLICY "payments_insert_policy" ON payments
 
 CREATE POLICY "payments_update_policy" ON payments
     FOR UPDATE USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "payments_delete_policy" ON payments
     FOR DELETE USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 -- ==========================================
--- 6. VENDORS — Kebijakan akses data vendor
+-- 6. VENDORS
 -- ==========================================
 
 CREATE POLICY "vendors_select_policy" ON vendors
     FOR SELECT USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "vendors_insert_policy" ON vendors
@@ -180,24 +164,21 @@ CREATE POLICY "vendors_insert_policy" ON vendors
 
 CREATE POLICY "vendors_update_policy" ON vendors
     FOR UPDATE USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "vendors_delete_policy" ON vendors
     FOR DELETE USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 -- ==========================================
--- 7. DOCUMENTS — Kebijakan akses dokumen/berkas
+-- 7. DOCUMENTS
 -- ==========================================
 
 CREATE POLICY "documents_select_policy" ON documents
     FOR SELECT USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "documents_insert_policy" ON documents
@@ -208,24 +189,21 @@ CREATE POLICY "documents_insert_policy" ON documents
 
 CREATE POLICY "documents_update_policy" ON documents
     FOR UPDATE USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "documents_delete_policy" ON documents
     FOR DELETE USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 -- ==========================================
--- 8. ACTIVITIES — Kebijakan akses riwayat aktivitas
+-- 8. ACTIVITIES
 -- ==========================================
 
 CREATE POLICY "activities_select_policy" ON activities
     FOR SELECT USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "activities_insert_policy" ON activities
@@ -236,24 +214,21 @@ CREATE POLICY "activities_insert_policy" ON activities
 
 CREATE POLICY "activities_update_policy" ON activities
     FOR UPDATE USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "activities_delete_policy" ON activities
     FOR DELETE USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 -- ==========================================
--- 9. TIMELINE_EVENTS — Kebijakan akses rundown acara
+-- 9. TIMELINE_EVENTS
 -- ==========================================
 
 CREATE POLICY "timeline_events_select_policy" ON timeline_events
     FOR SELECT USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "timeline_events_insert_policy" ON timeline_events
@@ -264,18 +239,16 @@ CREATE POLICY "timeline_events_insert_policy" ON timeline_events
 
 CREATE POLICY "timeline_events_update_policy" ON timeline_events
     FOR UPDATE USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "timeline_events_delete_policy" ON timeline_events
     FOR DELETE USING (
-        org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        org_id IS NOT NULL AND org_id = public.get_user_org_id()
     );
 
 -- ==========================================
--- 10. NOTIFICATIONS — Kebijakan akses notifikasi
+-- 10. NOTIFICATIONS
 -- ==========================================
 
 CREATE POLICY "notifications_select_policy" ON notifications
