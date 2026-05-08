@@ -4,6 +4,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import { User, Building, Shield, Bell, Plus, Users, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { isDemoAccount } from "@/lib/demo";
 
 export default function SettingsPage() {
   const [activeSubTab, setActiveSubTab] = useState<"profil" | "organisasi" | "tim">("profil");
@@ -164,7 +165,10 @@ export default function SettingsPage() {
                   <Users className="h-5 w-5 text-[#D4AF37]" />
                   <h2 className="font-heading text-xl font-bold text-[#1E1E1E]">Akses Anggota Tim</h2>
                 </div>
-                <button className="inline-flex items-center gap-1 rounded-full bg-[#1E1E1E] px-3 py-1.5 text-[11px] font-semibold text-white">
+                <button 
+                  onClick={() => alert("Fitur undang tim akan hadir di update berikutnya.")}
+                  className="inline-flex items-center gap-1 rounded-full bg-[#1E1E1E] px-3 py-1.5 text-[11px] font-semibold text-white cursor-pointer"
+                >
                   <Plus className="h-3.5 w-3.5" /> Undang Tim
                 </button>
               </div>
@@ -172,25 +176,35 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-[#ECE7E1]/50 pb-3">
                   <div>
-                    <p className="text-sm font-semibold text-[#1E1E1E]">{user?.name || "Sari Dewi"}</p>
-                    <p className="text-[11px] text-[#666666] mt-0.5">{user?.email || "sari@amara-wo.com"} • Owner</p>
+                    <p className="text-sm font-semibold text-[#1E1E1E]">{user?.name || "Pengguna"}</p>
+                    <p className="text-[11px] text-[#666666] mt-0.5">{user?.email || "user@wedora.id"} • Owner</p>
                   </div>
                   <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">Aktif</span>
                 </div>
-                <div className="flex items-center justify-between border-b border-[#ECE7E1]/50 pb-3">
-                  <div>
-                    <p className="text-sm font-semibold text-[#1E1E1E]">Budi Santoso</p>
-                    <p className="text-[11px] text-[#666666] mt-0.5">budi@amara-wo.com • Admin</p>
+                {isDemoAccount() && (
+                  <>
+                    <div className="flex items-center justify-between border-b border-[#ECE7E1]/50 pb-3">
+                      <div>
+                        <p className="text-sm font-semibold text-[#1E1E1E]">Budi Santoso</p>
+                        <p className="text-[11px] text-[#666666] mt-0.5">budi@amara-wo.com • Admin</p>
+                      </div>
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">Aktif</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-[#1E1E1E]">Lina Permata</p>
+                        <p className="text-[11px] text-[#666666] mt-0.5">lina@amara-wo.com • Staff / Kordinator</p>
+                      </div>
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">Aktif</span>
+                    </div>
+                  </>
+                )}
+                {!isDemoAccount() && (
+                  <div className="rounded-xl border border-dashed border-[#ECE7E1] bg-[#FAF7F2]/30 p-6 text-center space-y-2">
+                    <Users className="h-8 w-8 text-[#D4AF37] mx-auto" />
+                    <p className="text-xs text-[#666666]">Undang anggota tim untuk berkolaborasi</p>
                   </div>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">Aktif</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-[#1E1E1E]">Lina Permata</p>
-                    <p className="text-[11px] text-[#666666] mt-0.5">lina@amara-wo.com • Staff / Kordinator</p>
-                  </div>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">Aktif</span>
-                </div>
+                )}
               </div>
             </div>
           )}

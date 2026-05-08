@@ -32,7 +32,9 @@ import {
   Info,
   Receipt,
   UserCheck,
-  Trash2
+  Trash2,
+  Pencil,
+  X
 } from "lucide-react";
 
 export default function ProjectDetailPage() {
@@ -47,6 +49,17 @@ export default function ProjectDetailPage() {
 
   // Active sub-tab
   const [activeTab, setActiveTab] = useState<"overview" | "rundown" | "keuangan" | "checklist">("overview");
+
+  // Edit modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editBrideName, setEditBrideName] = useState("");
+  const [editGroomName, setEditGroomName] = useState("");
+  const [editWeddingDate, setEditWeddingDate] = useState("");
+  const [editVenue, setEditVenue] = useState("");
+  const [editGuestCount, setEditGuestCount] = useState("");
+  const [editBudgetTotal, setEditBudgetTotal] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editStatus, setEditStatus] = useState<string>("planning");
 
   useEffect(() => {
     if (!id) return;
@@ -114,6 +127,40 @@ export default function ProjectDetailPage() {
     if (!confirm("Apakah Anda yakin ingin menghapus jadwal ini?")) return;
     timelineService.delete(eventId).then(() => {
       setTimelineEvents((prev) => prev.filter((e) => e.id !== eventId));
+    });
+  };
+
+  // Handle opening edit modal
+  const handleOpenEditModal = () => {
+    if (!project) return;
+    setEditBrideName(project.bride_name);
+    setEditGroomName(project.groom_name);
+    setEditWeddingDate(project.wedding_date);
+    setEditVenue(project.venue);
+    setEditGuestCount(String(project.guest_count || ""));
+    setEditBudgetTotal(String(project.budget_total));
+    setEditNotes(project.notes || "");
+    setEditStatus(project.status);
+    setIsEditModalOpen(true);
+  };
+
+  // Handle edit submit
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!project) return;
+    const updatedFields = {
+      bride_name: editBrideName,
+      groom_name: editGroomName,
+      wedding_date: editWeddingDate,
+      venue: editVenue,
+      guest_count: editGuestCount ? Number(editGuestCount) : undefined,
+      budget_total: Number(editBudgetTotal),
+      notes: editNotes,
+      status: editStatus as any
+    };
+    projectService.update(project.id, updatedFields).then((updated) => {
+      if (updated) setProject(updated);
+      setIsEditModalOpen(false);
     });
   };
 
@@ -193,6 +240,13 @@ export default function ProjectDetailPage() {
             </div>
 
             <div className="flex gap-2 shrink-0">
+              <button
+                onClick={handleOpenEditModal}
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#ECE7E1] bg-white px-4 py-2 text-xs font-semibold text-[#1E1E1E] hover:bg-[#FAF7F2] transition-colors"
+              >
+                <Pencil className="h-3.5 w-3.5 text-[#D4AF37]" />
+                <span>Edit</span>
+              </button>
               <a
                 href={`https://api.whatsapp.com/send?phone=6281234567890&text=${encodeURIComponent(
                   `Halo Kak ${project.bride_name} & Kak ${project.groom_name}, ini asisten dari tim Amara WO. Persiapan pernikahan Kakak terus kami update di sistem, saat ini progres budget terpakai baru ${progress}%. Kakak bisa cek rundown dan kelengkapan tugas di link portal klien berikut ya. Terima kasih banyak!`
@@ -707,6 +761,146 @@ export default function ProjectDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Project Modal */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsEditModalOpen(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-[#ECE7E1] bg-white shadow-elevated z-10 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between border-b border-[#ECE7E1] px-6 py-4 text-left">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-[#D4AF37]" />
+                  <h3 className="font-heading text-lg font-bold text-[#1E1E1E]">Edit Proyek Pernikahan</h3>
+                </div>
+                <button
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="rounded-full p-1 text-[#666666] hover:bg-[#FAF7F2] hover:text-[#1E1E1E] transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <form onSubmit={handleEditSubmit} className="p-6 space-y-4 text-left">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Nama Mempelai Wanita</label>
+                    <input
+                      type="text"
+                      required
+                      value={editBrideName}
+                      onChange={(e) => setEditBrideName(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Nama Mempelai Pria</label>
+                    <input
+                      type="text"
+                      required
+                      value={editGroomName}
+                      onChange={(e) => setEditGroomName(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Tanggal Pernikahan</label>
+                    <input
+                      type="date"
+                      required
+                      value={editWeddingDate}
+                      onChange={(e) => setEditWeddingDate(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Jumlah Tamu</label>
+                    <input
+                      type="number"
+                      value={editGuestCount}
+                      onChange={(e) => setEditGuestCount(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Venue</label>
+                  <input
+                    type="text"
+                    required
+                    value={editVenue}
+                    onChange={(e) => setEditVenue(e.target.value)}
+                    className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Total Anggaran (IDR)</label>
+                    <input
+                      type="number"
+                      required
+                      value={editBudgetTotal}
+                      onChange={(e) => setEditBudgetTotal(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Status Proyek</label>
+                    <select
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none text-[#1E1E1E]"
+                    >
+                      <option value="inquiry">Inquiry</option>
+                      <option value="planning">Perencanaan</option>
+                      <option value="dp_paid">DP Paid</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Selesai</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Catatan / Tema</label>
+                  <textarea
+                    rows={2}
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    className="mt-1.5 block w-full rounded-2xl border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2.5 text-xs focus:border-[#D4AF37] focus:outline-none resize-none"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 border-t border-[#ECE7E1] pt-4 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="rounded-full border border-[#ECE7E1] bg-white px-4 py-2 text-xs font-semibold text-[#666666] hover:bg-[#FAF7F2] transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-full bg-[#1E1E1E] px-5 py-2 text-xs font-semibold text-white hover:scale-[1.01] transition-transform flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>Simpan Perubahan</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </AppLayout>
   );
 }

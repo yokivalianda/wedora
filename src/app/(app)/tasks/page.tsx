@@ -56,6 +56,20 @@ export default function TasksPage() {
     });
   };
 
+  const handleCyclePriority = (task: Task) => {
+    const cycle: Record<string, "low" | "medium" | "high"> = {
+      low: "medium",
+      medium: "high",
+      high: "low"
+    };
+    const newPriority = cycle[task.priority] || "medium";
+    taskService.update(task.id, { priority: newPriority }).then((updated) => {
+      if (updated) {
+        setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+      }
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title) return;
@@ -224,9 +238,13 @@ export default function TasksPage() {
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
-                    <span className={`rounded-full px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${TASK_PRIORITY_COLORS[task.priority]}`}>
+                    <button
+                      onClick={() => handleCyclePriority(task)}
+                      className={`rounded-full px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider cursor-pointer hover:opacity-80 transition-opacity ${TASK_PRIORITY_COLORS[task.priority]}`}
+                      title="Klik untuk ubah prioritas"
+                    >
                       {TASK_PRIORITY_LABELS[task.priority]}
-                    </span>
+                    </button>
                   </div>
                 </div>
               );

@@ -38,6 +38,14 @@ export default function BudgetPage() {
     });
   };
 
+  const handleMarkAsPaid = (id: string) => {
+    paymentService.update(id, { status: "dibayar", payment_date: new Date().toISOString().split("T")[0] }).then((updated) => {
+      if (updated) {
+        setPayments((prev) => prev.map((p) => (p.id === id ? updated : p)));
+      }
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount) return;
@@ -201,13 +209,24 @@ export default function BudgetPage() {
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-left text-sm">
-                          <button
-                            onClick={() => handleDelete(p.id)}
-                            className="text-[#666666] hover:text-rose-500 transition-colors"
-                            title="Hapus Transaksi"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {!isPaid && (
+                              <button
+                                onClick={() => handleMarkAsPaid(p.id)}
+                                className="text-[#666666] hover:text-emerald-600 transition-colors"
+                                title="Tandai Lunas"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDelete(p.id)}
+                              className="text-[#666666] hover:text-rose-500 transition-colors"
+                              title="Hapus Transaksi"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

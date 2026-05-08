@@ -19,7 +19,8 @@ import {
   MapPin,
   Info,
   DollarSign,
-  Trash2
+  Trash2,
+  Pencil
 } from "lucide-react";
 
 export default function VendorsPage() {
@@ -76,6 +77,55 @@ export default function VendorsPage() {
     setPriceRange("");
     setNotes("");
     setIsAddModalOpen(false);
+  };
+
+  // Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingVendorId, setEditingVendorId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState<VendorCategory>("foto_video");
+  const [editContactName, setEditContactName] = useState("");
+  const [editContactPhone, setEditContactPhone] = useState("");
+  const [editContactEmail, setEditContactEmail] = useState("");
+  const [editRating, setEditRating] = useState("5");
+  const [editPriceRange, setEditPriceRange] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+
+  const handleOpenEditVendor = (vendor: Vendor) => {
+    setEditingVendorId(vendor.id);
+    setEditName(vendor.name);
+    setEditCategory(vendor.category);
+    setEditContactName(vendor.contact_name || "");
+    setEditContactPhone(vendor.contact_phone || "");
+    setEditContactEmail(vendor.contact_email || "");
+    setEditRating(String(vendor.rating || 5));
+    setEditPriceRange(vendor.price_range || "");
+    setEditNotes(vendor.notes || "");
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingVendorId || !editName || !editContactName || !editContactPhone) return;
+
+    const updatedFields = {
+      name: editName,
+      category: editCategory,
+      contact_name: editContactName,
+      contact_phone: editContactPhone,
+      contact_email: editContactEmail || undefined,
+      rating: Number(editRating),
+      price_range: editPriceRange || "Hubungi Vendor",
+      notes: editNotes
+    };
+
+    vendorService.update(editingVendorId, updatedFields).then((updated) => {
+      if (updated) {
+        setVendors((prev) => prev.map((v) => (v.id === editingVendorId ? updated : v)));
+      }
+      setIsEditModalOpen(false);
+      setEditingVendorId(null);
+    });
   };
 
   const filteredVendors = vendors.filter((vendor) => {
@@ -170,6 +220,13 @@ export default function VendorsPage() {
                           />
                         ))}
                       </div>
+                      <button
+                        onClick={() => handleOpenEditVendor(vendor)}
+                        className="text-[#666666] hover:text-[#D4AF37] transition-colors"
+                        title="Edit Vendor"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
                       <button
                         onClick={() => {
                           if (!confirm("Apakah Anda yakin ingin menghapus vendor ini?")) return;
@@ -383,6 +440,145 @@ export default function VendorsPage() {
                     className="rounded-full bg-[#1E1E1E] px-5 py-2 text-xs font-semibold text-white hover:scale-[1.01] transition-transform flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>Simpan Vendor 🌟</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Vendor Modal */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsEditModalOpen(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-[#ECE7E1] bg-white shadow-elevated z-10 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between border-b border-[#ECE7E1] px-6 py-4 text-left">
+                <div className="flex items-center gap-2">
+                  <Pencil className="h-5 w-5 text-[#D4AF37]" />
+                  <h3 className="font-heading text-lg font-bold text-[#1E1E1E]">Edit Rekanan Vendor</h3>
+                </div>
+                <button
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="rounded-full p-1 text-[#666666] hover:bg-[#FAF7F2] hover:text-[#1E1E1E] transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <form onSubmit={handleEditSubmit} className="p-6 space-y-4 text-left">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Nama Bisnis Vendor</label>
+                    <input
+                      type="text"
+                      required
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Kategori Layanan</label>
+                    <select
+                      value={editCategory}
+                      onChange={(e) => setEditCategory(e.target.value as any)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none text-[#1E1E1E]"
+                    >
+                      {Object.entries(VENDOR_CATEGORY_LABELS).map(([key, label]) => (
+                        <option key={key} value={key}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Nama Narahubung (PIC)</label>
+                    <input
+                      type="text"
+                      required
+                      value={editContactName}
+                      onChange={(e) => setEditContactName(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">No. HP / WhatsApp PIC</label>
+                    <input
+                      type="tel"
+                      required
+                      value={editContactPhone}
+                      onChange={(e) => setEditContactPhone(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Email Vendor (Opsional)</label>
+                    <input
+                      type="email"
+                      value={editContactEmail}
+                      onChange={(e) => setEditContactEmail(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Rentang Estimasi Harga</label>
+                    <input
+                      type="text"
+                      value={editPriceRange}
+                      onChange={(e) => setEditPriceRange(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Rating Vendor</label>
+                  <select
+                    value={editRating}
+                    onChange={(e) => setEditRating(e.target.value)}
+                    className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none text-[#1E1E1E]"
+                  >
+                    <option value="5">⭐⭐⭐⭐⭐ (5 Bintang)</option>
+                    <option value="4">⭐⭐⭐⭐ (4 Bintang)</option>
+                    <option value="3">⭐⭐⭐ (3 Bintang)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Catatan / Keunggulan Vendor</label>
+                  <textarea
+                    rows={2}
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    className="mt-1.5 block w-full rounded-2xl border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2.5 text-xs focus:border-[#D4AF37] focus:outline-none resize-none"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 border-t border-[#ECE7E1] pt-4 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="rounded-full border border-[#ECE7E1] bg-white px-4 py-2 text-xs font-semibold text-[#666666] hover:bg-[#FAF7F2] transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-full bg-[#1E1E1E] px-5 py-2 text-xs font-semibold text-white hover:scale-[1.01] transition-transform flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>Simpan Perubahan</span>
                   </button>
                 </div>
               </form>

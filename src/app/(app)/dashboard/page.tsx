@@ -115,36 +115,55 @@ export default function DashboardPage() {
 
 
         {/* Cash Flow At Risk / Premium Alert Banner */}
-        {stats.pending_payments > 0 && (
-          <div className="relative overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/50 p-5 shadow-soft flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in">
-            <div className="flex items-start gap-3.5 text-left">
-              <div className="mt-0.5 rounded-full bg-amber-100 p-2 text-amber-600 shrink-0">
-                <span className="text-lg">⚠️</span>
+        {(() => {
+          const nearestPendingPayment = payments
+            .filter(p => p.status === "menunggu" || p.status === "terlambat")
+            .sort((a, b) => {
+              const dateA = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+              const dateB = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+              return dateA - dateB;
+            })[0];
+
+          const nudgeProject = nearestPendingPayment
+            ? projects.find(p => p.id === nearestPendingPayment.project_id)
+            : null;
+
+          if (!nearestPendingPayment || !nudgeProject) return null;
+
+          const clientName = `${nudgeProject.bride_name} & ${nudgeProject.groom_name}`;
+          const nudgeAmount = formatCurrency(nearestPendingPayment.amount);
+
+          return (
+            <div className="relative overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/50 p-5 shadow-soft flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in">
+              <div className="flex items-start gap-3.5 text-left">
+                <div className="mt-0.5 rounded-full bg-amber-100 p-2 text-amber-600 shrink-0">
+                  <span className="text-lg">⚠️</span>
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-[#1E1E1E] tracking-tight">
+                    Arus Kas Menunggu Pelunasan: <span className="text-[#D4AF37]">{formatCurrency(stats.pending_payments)}</span>
+                  </h4>
+                  <p className="text-xs text-[#666666] mt-0.5 leading-relaxed max-w-xl">
+                    Terdapat pembayaran pelunasan terdekat untuk klien <strong className="text-[#1E1E1E]">{clientName}</strong> sebesar {nudgeAmount} yang mendekati jatuh tempo. Kirimkan pesan tagihan ramah melalui WhatsApp.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-sm font-bold text-[#1E1E1E] tracking-tight">
-                  Arus Kas Menunggu Pelunasan: <span className="text-[#D4AF37]">{formatCurrency(stats.pending_payments)}</span>
-                </h4>
-                <p className="text-xs text-[#666666] mt-0.5 leading-relaxed max-w-xl">
-                  Terdapat pembayaran pelunasan terdekat untuk klien <strong className="text-[#1E1E1E]">Anisa & Reza</strong> sebesar Rp 175.000.000 yang mendekati jatuh tempo. Kirimkan pesan tagihan ramah melalui WhatsApp.
-                </p>
-              </div>
+              <a
+                href={`https://api.whatsapp.com/send?phone=6281234567890&text=${encodeURIComponent(
+                  `Halo Kak ${nudgeProject.bride_name}, ini tim asisten dari ${user?.orgName || "Amara"} WO. Kami ingin mengonfirmasi terkait jadwal pembayaran pelunasan berikutnya sebesar ${nudgeAmount} yang akan segera jatuh tempo. Kakak bisa memeriksa rincian invoice dan status persiapan pernikahan di portal klien Wedora. Terima kasih banyak, Kak!`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition-colors shrink-0 self-start md:self-center"
+              >
+                <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.965C16.528 2.031 14.07 1.01 11.455 1.01 6.012 1.01 1.593 5.378 1.59 10.808c0 1.637.433 3.238 1.256 4.674l-.167.979-.933 3.411 3.5-.918z" />
+                </svg>
+                <span>Kirim Nudge WhatsApp</span>
+              </a>
             </div>
-            <a
-              href={`https://api.whatsapp.com/send?phone=6281234567890&text=${encodeURIComponent(
-                "Halo Kak Anisa Putri, ini tim asisten dari Amara WO. Kami ingin mengonfirmasi terkait jadwal pembayaran pelunasan berikutnya sebesar Rp 175.000.000 yang akan jatuh tempo pada 1 Juni 2026. Kakak bisa memeriksa rincian invoice dan status persiapan pernikahan di link portal klien Wedora berikut ya: klien.amarawo.com/anisa-reza. Terima kasih banyak, Kak!"
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition-colors shrink-0 self-start md:self-center"
-            >
-              <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
-                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.965C16.528 2.031 14.07 1.01 11.455 1.01 6.012 1.01 1.593 5.378 1.59 10.808c0 1.637.433 3.238 1.256 4.674l-.167.979-.933 3.411 3.5-.918z" />
-              </svg>
-              <span>Kirim Nudge WhatsApp</span>
-            </a>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
