@@ -105,11 +105,8 @@ export default function ProjectDetailPage() {
     });
   };
 
-  // Scoped Payments (fallback to generated defaults if none exist)
-  const finalPayments = payments.length > 0 ? payments : [
-    { id: `pay-gen-1`, org_id: "org-001", project_id: id, type: "dp" as const, amount: project.budget_total * 0.3, status: "dibayar" as const, payment_date: "2026-02-15", notes: "Down payment 30% tervalidasi", created_at: new Date().toISOString() },
-    { id: `pay-gen-2`, org_id: "org-001", project_id: id, type: "pelunasan" as const, amount: project.budget_total * 0.7, status: "menunggu" as const, due_date: project.wedding_date, notes: "Pelunasan sisa tagihan 70%", created_at: new Date().toISOString() }
-  ];
+  // Scoped Payments
+  const finalPayments = payments;
 
   // Financial calculations
   const totalPaid = finalPayments
@@ -121,14 +118,7 @@ export default function ProjectDetailPage() {
 
   // Scoped Timeline
   const projectTimeline = mockTimeline.filter((t) => t.project_id === id);
-  const finalTimeline = projectTimeline.length > 0 ? projectTimeline : [
-    { id: "gen-1", project_id: id, title: "Persiapan Pengantin Putri", description: `Sesi rias makeup, pemakaian gaun, dan persiapan awal untuk Kak ${project.bride_name}`, time: "06:00", location: "Suite Room Utama", pic: "Lina Permata", category: "preparation" },
-    { id: "gen-2", project_id: id, title: `Pemberangkatan & Kehadiran Kak ${project.groom_name}`, description: `Penyambutan keluarga pengantin putra di area lobby utama venue`, time: "08:00", location: "Lobby Utama Hotel", pic: "Rizky Hidayat", category: "preparation" },
-    { id: "gen-3", project_id: id, title: "Prosesi Akad Nikah / Sakral", description: `Prosesi sakral pernikahan disaksikan keluarga dan para saksi`, time: "09:00", location: "Grand Ballroom / Chapel", pic: "Sari Dewi Rahayu", category: "ceremony" },
-    { id: "gen-4", project_id: id, title: "Sesi Foto Keluarga & Istirahat", description: `Sesi dokumentasi formal keluarga inti dan ganti pakaian resepsi`, time: "11:00", location: "Pelaminan Utama", pic: "Budi Santoso", category: "ceremony" },
-    { id: "gen-5", project_id: id, title: "Resepsi Pernikahan", description: `Penyambutan tamu, hidangan katering bersama, live music, dan ucapan selamat`, time: "12:00", location: "Grand Ballroom", pic: "Sari Dewi Rahayu", category: "reception" },
-    { id: "gen-6", project_id: id, title: "Penutupan & Foto Tim WO", description: `Penutupan resepsi, foto bersama seluruh panitia vendor, dan serah terima dokumen hantaran`, time: "15:00", location: "Grand Ballroom", pic: "Budi Santoso", category: "lainnya" },
-  ];
+  const finalTimeline = projectTimeline;
 
   // Budget progress
   const progress = calculateProgress(project.budget_used, project.budget_total);

@@ -4,12 +4,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import { FolderOpen, FileText, Image as ImageIcon, Plus, ArrowUpRight, Search } from "lucide-react";
 import { useState } from "react";
 
-const mockDocuments = [
-  { id: "doc-1", name: "Kontrak Vendor Dekorasi - La Maison.pdf", type: "pdf", size: "2.4 MB", date: "Mei 2, 2026", category: "Kontrak" },
-  { id: "doc-2", name: "Inspirasi Moodboard Rustic Sage.png", type: "image", size: "5.8 MB", date: "Mei 4, 2026", category: "Moodboard" },
-  { id: "doc-3", name: "Rincian Katering Sriwijaya.xlsx", type: "excel", size: "1.1 MB", date: "Mei 5, 2026", category: "Invoice" },
-  { id: "doc-4", name: "Surat Izin Penggunaan Gedung.pdf", type: "pdf", size: "850 KB", date: "Mei 6, 2026", category: "Dokumen" },
-];
+const mockDocuments: any[] = [];
 
 export default function DocumentsPage() {
   const [search, setSearch] = useState("");

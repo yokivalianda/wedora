@@ -58,7 +58,7 @@ export const projectService = {
         console.warn("Failed to fetch from Supabase:", err);
       }
     }
-    return mergeWithLocal(supabaseData, "wedora_projects", mockProjects);
+    return mergeWithLocal(supabaseData, "wedora_projects", []);
   },
 
   async getById(id: string): Promise<WeddingProject | null> {
@@ -74,7 +74,7 @@ export const projectService = {
         console.warn("Failed to fetch project by id from Supabase:", err);
       }
     }
-    const projects = getLocalStorage<WeddingProject[]>("wedora_projects", mockProjects);
+    const projects = getLocalStorage<WeddingProject[]>("wedora_projects", []);
     return projects.find((p) => p.id === id) || null;
   },
 
@@ -145,7 +145,7 @@ export const projectService = {
     } else {
       console.log("[projectService.create] Supabase not configured, skipping");
     }
-    const projects = getLocalStorage<WeddingProject[]>("wedora_projects", mockProjects);
+    const projects = getLocalStorage<WeddingProject[]>("wedora_projects", []);
     const updated = [created, ...projects.filter((p) => p.id !== created.id)];
     setLocalStorage("wedora_projects", updated);
     return created;
@@ -184,7 +184,7 @@ export const projectService = {
         throw new Error(err?.message || "Failed to update project in Supabase");
       }
     }
-    const projects = getLocalStorage<WeddingProject[]>("wedora_projects", mockProjects);
+    const projects = getLocalStorage<WeddingProject[]>("wedora_projects", []);
     const updated = projects.map((p) => {
       if (p.id === id) {
         const merged = { ...p, ...project, updated_at: new Date().toISOString() } as WeddingProject;
@@ -206,7 +206,7 @@ export const projectService = {
         console.warn("Failed to delete project from Supabase:", err);
       }
     }
-    const projects = getLocalStorage<WeddingProject[]>("wedora_projects", mockProjects);
+    const projects = getLocalStorage<WeddingProject[]>("wedora_projects", []);
     const updated = projects.filter((p) => p.id !== id);
     setLocalStorage("wedora_projects", updated);
     return true;
@@ -230,7 +230,7 @@ export const taskService = {
         console.warn("Failed to fetch tasks from Supabase:", err);
       }
     }
-    return mergeWithLocal(supabaseData, "wedora_tasks", mockTasks);
+    return mergeWithLocal(supabaseData, "wedora_tasks", []);
   },
 
   async create(task: Task): Promise<Task> {
@@ -285,7 +285,7 @@ export const taskService = {
     } else {
       console.log("[taskService.create] Supabase not configured, skipping");
     }
-    const tasks = getLocalStorage<Task[]>("wedora_tasks", mockTasks);
+    const tasks = getLocalStorage<Task[]>("wedora_tasks", []);
     const updated = [created, ...tasks.filter((t) => t.id !== created.id)];
     setLocalStorage("wedora_tasks", updated);
     return created;
@@ -321,7 +321,7 @@ export const taskService = {
     }
 
     // Always sync localStorage fallback
-    const tasks = getLocalStorage<Task[]>("wedora_tasks", mockTasks);
+    const tasks = getLocalStorage<Task[]>("wedora_tasks", []);
     const updated = tasks.map((t) => {
       if (t.id === id) {
         if (!targetTask) {
@@ -365,7 +365,7 @@ export const taskService = {
         throw new Error(err?.message || "Failed to update task in Supabase");
       }
     }
-    const tasks = getLocalStorage<Task[]>("wedora_tasks", mockTasks);
+    const tasks = getLocalStorage<Task[]>("wedora_tasks", []);
     const updated = tasks.map((t) => {
       if (t.id === id) {
         const merged = { ...t, ...task } as Task;
@@ -387,7 +387,7 @@ export const taskService = {
         console.warn("Failed to delete task from Supabase:", err);
       }
     }
-    const tasks = getLocalStorage<Task[]>("wedora_tasks", mockTasks);
+    const tasks = getLocalStorage<Task[]>("wedora_tasks", []);
     const updated = tasks.filter((t) => t.id !== id);
     setLocalStorage("wedora_tasks", updated);
     return true;
@@ -411,7 +411,7 @@ export const paymentService = {
         console.warn("Failed to fetch payments from Supabase:", err);
       }
     }
-    return mergeWithLocal(supabaseData, "wedora_payments", mockPayments);
+    return mergeWithLocal(supabaseData, "wedora_payments", []);
   },
 
   async create(payment: Payment): Promise<Payment> {
@@ -467,7 +467,7 @@ export const paymentService = {
     } else {
       console.log("[paymentService.create] Supabase not configured, skipping");
     }
-    const payments = getLocalStorage<Payment[]>("wedora_payments", mockPayments);
+    const payments = getLocalStorage<Payment[]>("wedora_payments", []);
     const updated = [created, ...payments.filter((p) => p.id !== created.id)];
     setLocalStorage("wedora_payments", updated);
     return created;
@@ -502,7 +502,7 @@ export const paymentService = {
         throw new Error(err?.message || "Failed to update payment in Supabase");
       }
     }
-    const payments = getLocalStorage<Payment[]>("wedora_payments", mockPayments);
+    const payments = getLocalStorage<Payment[]>("wedora_payments", []);
     const updated = payments.map((p) => {
       if (p.id === id) {
         const merged = { ...p, ...payment } as Payment;
@@ -524,7 +524,7 @@ export const paymentService = {
         console.warn("Failed to delete payment from Supabase:", err);
       }
     }
-    const payments = getLocalStorage<Payment[]>("wedora_payments", mockPayments);
+    const payments = getLocalStorage<Payment[]>("wedora_payments", []);
     const updated = payments.filter((p) => p.id !== id);
     setLocalStorage("wedora_payments", updated);
     return true;
@@ -548,7 +548,7 @@ export const vendorService = {
         console.warn("Failed to fetch vendors from Supabase:", err);
       }
     }
-    return mergeWithLocal(supabaseData, "wedora_vendors", mockVendors);
+    return mergeWithLocal(supabaseData, "wedora_vendors", []);
   },
 
   async create(vendor: Vendor): Promise<Vendor> {
@@ -577,7 +577,7 @@ export const vendorService = {
         throw new Error(err?.message || "Failed to create vendor in Supabase");
       }
     }
-    const vendors = getLocalStorage<Vendor[]>("wedora_vendors", mockVendors);
+    const vendors = getLocalStorage<Vendor[]>("wedora_vendors", []);
     const updated = [created, ...vendors.filter((v) => v.id !== created.id)];
     setLocalStorage("wedora_vendors", updated);
     return created;
@@ -609,7 +609,7 @@ export const vendorService = {
         throw new Error(err?.message || "Failed to update vendor in Supabase");
       }
     }
-    const vendors = getLocalStorage<Vendor[]>("wedora_vendors", mockVendors);
+    const vendors = getLocalStorage<Vendor[]>("wedora_vendors", []);
     const updated = vendors.map((v) => {
       if (v.id === id) {
         const merged = { ...v, ...vendor } as Vendor;
@@ -631,7 +631,7 @@ export const vendorService = {
         console.warn("Failed to delete vendor from Supabase:", err);
       }
     }
-    const vendors = getLocalStorage<Vendor[]>("wedora_vendors", mockVendors);
+    const vendors = getLocalStorage<Vendor[]>("wedora_vendors", []);
     const updated = vendors.filter((v) => v.id !== id);
     setLocalStorage("wedora_vendors", updated);
     return true;
