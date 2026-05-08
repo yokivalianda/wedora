@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured } from "./supabase";
-import { WeddingProject, Task, Payment, Vendor } from "@/types";
-import { mockProjects, mockTasks, mockPayments, mockVendors } from "./mock-data";
+import { WeddingProject, Task, Payment, Vendor, Document, Activity, TimelineEvent } from "@/types";
+import { mockProjects, mockTasks, mockPayments, mockVendors, mockDocuments, mockActivities, mockTimeline } from "./mock-data";
 import { isDemoAccount } from "./demo";
 
 if (typeof window !== "undefined" && !isSupabaseConfigured()) {
@@ -686,6 +686,374 @@ export const vendorService = {
       const vendors = getLocalStorage<Vendor[]>("wedora_vendors", []);
       const updated = vendors.filter((v) => v.id !== id);
       setLocalStorage("wedora_vendors", updated);
+    }
+    return true;
+  }
+};
+
+// ============================================================
+// 5. SERVICES FOR DOCUMENTS
+// ============================================================
+export const documentService = {
+  async getAll(): Promise<Document[]> {
+    let supabaseData: Document[] = [];
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from("documents")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (!error && data) supabaseData = data as Document[];
+      } catch (err) {
+        console.warn("Failed to fetch documents from Supabase:", err);
+      }
+    }
+    return mergeWithLocal(supabaseData, "wedora_documents", isDemoAccount() ? mockDocuments : []);
+  },
+
+  async create(document: Document): Promise<Document> {
+    let created = document;
+    if (isSupabaseConfigured()) {
+      try {
+        const generateUUID = () => {
+          if (typeof crypto !== "undefined" && crypto.randomUUID) {
+            return crypto.randomUUID();
+          }
+          return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
+        };
+        const isValidUUID = (id: string) => {
+          return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+        };
+        const docId = isValidUUID(document.id) ? document.id : generateUUID();
+
+        const { data, error } = await supabase
+          .from("documents")
+          .insert({
+            id: docId,
+            org_id: null,
+            project_id: document.project_id || null,
+            name: document.name,
+            type: document.type,
+            category: document.category || null,
+            size: document.size || null,
+            url: document.url || "#",
+            uploaded_by: document.uploaded_by || null,
+            created_at: document.created_at || new Date().toISOString()
+          })
+          .select()
+          .single();
+        if (error) {
+          console.error("[documentService.create] Supabase insert error:", JSON.stringify(error, null, 2));
+          throw new Error(`Failed to create document: ${error.message || JSON.stringify(error)}`);
+        }
+        if (data) {
+          created = data as Document;
+        } else {
+          created = { ...document, id: docId };
+        }
+      } catch (err: any) {
+        console.error("[documentService.create] Failed:", err);
+        throw new Error(err?.message || "Failed to create document in Supabase");
+      }
+    }
+    if (!isDemoAccount()) {
+      const documents = getLocalStorage<Document[]>("wedora_documents", []);
+      const updated = [created, ...documents.filter((d) => d.id !== created.id)];
+      setLocalStorage("wedora_documents", updated);
+    }
+    return created;
+  },
+
+  async update(id: string, document: Partial<Document>): Promise<Document | null> {
+    let updatedDocument: Document | null = null;
+    if (isSupabaseConfigured()) {
+      try {
+        const updateData: any = {};
+        if (document.name !== undefined) updateData.name = document.name;
+        if (document.type !== undefined) updateData.type = document.type;
+        if (document.category !== undefined) updateData.category = document.category;
+        if (document.size !== undefined) updateData.size = document.size;
+        if (document.url !== undefined) updateData.url = document.url;
+        if (document.uploaded_by !== undefined) updateData.uploaded_by = document.uploaded_by;
+
+        const { data, error } = await supabase
+          .from("documents")
+          .update(updateData)
+          .eq("id", id)
+          .select()
+          .single();
+        if (error) {
+          console.error("Supabase document update error:", error);
+          throw new Error(`Failed to update document: ${error.message}`);
+        }
+        if (data) updatedDocument = data as Document;
+      } catch (err: any) {
+        console.error("Failed to update document in Supabase:", err);
+        throw new Error(err?.message || "Failed to update document in Supabase");
+      }
+    }
+    if (!isDemoAccount()) {
+      const documents = getLocalStorage<Document[]>("wedora_documents", []);
+      const updated = documents.map((d) => {
+        if (d.id === id) {
+          const merged = { ...d, ...document } as Document;
+          if (!updatedDocument) updatedDocument = merged;
+          return merged;
+        }
+        return d;
+      });
+      setLocalStorage("wedora_documents", updated);
+    } else if (!updatedDocument) {
+      const mockDoc = mockDocuments.find((d) => d.id === id);
+      if (mockDoc) updatedDocument = { ...mockDoc, ...document } as Document;
+    }
+    return updatedDocument;
+  },
+
+  async delete(id: string): Promise<boolean> {
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase.from("documents").delete().eq("id", id);
+        if (error) console.warn("Failed to delete document from Supabase:", error);
+      } catch (err) {
+        console.warn("Failed to delete document from Supabase:", err);
+      }
+    }
+    if (!isDemoAccount()) {
+      const documents = getLocalStorage<Document[]>("wedora_documents", []);
+      const updated = documents.filter((d) => d.id !== id);
+      setLocalStorage("wedora_documents", updated);
+    }
+    return true;
+  }
+};
+
+// ============================================================
+// 6. SERVICES FOR ACTIVITIES
+// ============================================================
+export const activityService = {
+  async getAll(): Promise<Activity[]> {
+    let supabaseData: Activity[] = [];
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from("activities")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (!error && data) supabaseData = data as Activity[];
+      } catch (err) {
+        console.warn("Failed to fetch activities from Supabase:", err);
+      }
+    }
+    return mergeWithLocal(supabaseData, "wedora_activities", isDemoAccount() ? mockActivities : []);
+  },
+
+  async create(activity: Activity): Promise<Activity> {
+    let created = activity;
+    if (isSupabaseConfigured()) {
+      try {
+        const generateUUID = () => {
+          if (typeof crypto !== "undefined" && crypto.randomUUID) {
+            return crypto.randomUUID();
+          }
+          return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
+        };
+        const isValidUUID = (id: string) => {
+          return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+        };
+        const actId = isValidUUID(activity.id) ? activity.id : generateUUID();
+
+        const { data, error } = await supabase
+          .from("activities")
+          .insert({
+            id: actId,
+            org_id: null,
+            user_id: activity.user_id || null,
+            user_name: activity.user_name,
+            action: activity.action,
+            entity_type: activity.entity_type || null,
+            entity_id: activity.entity_id || null,
+            entity_name: activity.entity_name || null,
+            created_at: activity.created_at || new Date().toISOString()
+          })
+          .select()
+          .single();
+        if (error) {
+          console.error("[activityService.create] Supabase insert error:", JSON.stringify(error, null, 2));
+          throw new Error(`Failed to create activity: ${error.message || JSON.stringify(error)}`);
+        }
+        if (data) {
+          created = data as Activity;
+        } else {
+          created = { ...activity, id: actId };
+        }
+      } catch (err: any) {
+        console.error("[activityService.create] Failed:", err);
+        throw new Error(err?.message || "Failed to create activity in Supabase");
+      }
+    }
+    if (!isDemoAccount()) {
+      const activities = getLocalStorage<Activity[]>("wedora_activities", []);
+      const updated = [created, ...activities.filter((a) => a.id !== created.id)];
+      setLocalStorage("wedora_activities", updated);
+    }
+    return created;
+  }
+};
+
+// ============================================================
+// 7. SERVICES FOR TIMELINE EVENTS
+// ============================================================
+export const timelineService = {
+  async getAll(projectId?: string): Promise<TimelineEvent[]> {
+    let supabaseData: TimelineEvent[] = [];
+    if (isSupabaseConfigured()) {
+      try {
+        let query = supabase
+          .from("timeline_events")
+          .select("*")
+          .order("time", { ascending: true });
+        if (projectId) {
+          query = query.eq("project_id", projectId);
+        }
+        const { data, error } = await query;
+        if (!error && data) supabaseData = data as TimelineEvent[];
+      } catch (err) {
+        console.warn("Failed to fetch timeline events from Supabase:", err);
+      }
+    }
+    const fallback = isDemoAccount() ? mockTimeline : [];
+    const merged = mergeWithLocal(supabaseData, "wedora_timeline", fallback);
+    if (projectId) {
+      return merged.filter((e) => e.project_id === projectId);
+    }
+    return merged;
+  },
+
+  async create(event: TimelineEvent): Promise<TimelineEvent> {
+    let created = event;
+    if (isSupabaseConfigured()) {
+      try {
+        const generateUUID = () => {
+          if (typeof crypto !== "undefined" && crypto.randomUUID) {
+            return crypto.randomUUID();
+          }
+          return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
+        };
+        const isValidUUID = (id: string) => {
+          return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+        };
+        const eventId = isValidUUID(event.id) ? event.id : generateUUID();
+
+        const { data, error } = await supabase
+          .from("timeline_events")
+          .insert({
+            id: eventId,
+            org_id: null,
+            project_id: event.project_id || null,
+            title: event.title,
+            description: event.description || null,
+            time: event.time,
+            location: event.location || null,
+            pic: event.pic || null,
+            category: event.category || "lainnya",
+            created_at: event.created_at || new Date().toISOString()
+          })
+          .select()
+          .single();
+        if (error) {
+          console.error("[timelineService.create] Supabase insert error:", JSON.stringify(error, null, 2));
+          throw new Error(`Failed to create timeline event: ${error.message || JSON.stringify(error)}`);
+        }
+        if (data) {
+          created = data as TimelineEvent;
+        } else {
+          created = { ...event, id: eventId };
+        }
+      } catch (err: any) {
+        console.error("[timelineService.create] Failed:", err);
+        throw new Error(err?.message || "Failed to create timeline event in Supabase");
+      }
+    }
+    if (!isDemoAccount()) {
+      const events = getLocalStorage<TimelineEvent[]>("wedora_timeline", []);
+      const updated = [created, ...events.filter((e) => e.id !== created.id)];
+      setLocalStorage("wedora_timeline", updated);
+    }
+    return created;
+  },
+
+  async update(id: string, event: Partial<TimelineEvent>): Promise<TimelineEvent | null> {
+    let updatedEvent: TimelineEvent | null = null;
+    if (isSupabaseConfigured()) {
+      try {
+        const updateData: any = {};
+        if (event.title !== undefined) updateData.title = event.title;
+        if (event.description !== undefined) updateData.description = event.description;
+        if (event.time !== undefined) updateData.time = event.time;
+        if (event.location !== undefined) updateData.location = event.location;
+        if (event.pic !== undefined) updateData.pic = event.pic;
+        if (event.category !== undefined) updateData.category = event.category;
+
+        const { data, error } = await supabase
+          .from("timeline_events")
+          .update(updateData)
+          .eq("id", id)
+          .select()
+          .single();
+        if (error) {
+          console.error("Supabase timeline update error:", error);
+          throw new Error(`Failed to update timeline event: ${error.message}`);
+        }
+        if (data) updatedEvent = data as TimelineEvent;
+      } catch (err: any) {
+        console.error("Failed to update timeline event in Supabase:", err);
+        throw new Error(err?.message || "Failed to update timeline event in Supabase");
+      }
+    }
+    if (!isDemoAccount()) {
+      const events = getLocalStorage<TimelineEvent[]>("wedora_timeline", []);
+      const updated = events.map((e) => {
+        if (e.id === id) {
+          const merged = { ...e, ...event } as TimelineEvent;
+          if (!updatedEvent) updatedEvent = merged;
+          return merged;
+        }
+        return e;
+      });
+      setLocalStorage("wedora_timeline", updated);
+    } else if (!updatedEvent) {
+      const mockEvent = mockTimeline.find((e) => e.id === id);
+      if (mockEvent) updatedEvent = { ...mockEvent, ...event } as TimelineEvent;
+    }
+    return updatedEvent;
+  },
+
+  async delete(id: string): Promise<boolean> {
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase.from("timeline_events").delete().eq("id", id);
+        if (error) console.warn("Failed to delete timeline event from Supabase:", error);
+      } catch (err) {
+        console.warn("Failed to delete timeline event from Supabase:", err);
+      }
+    }
+    if (!isDemoAccount()) {
+      const events = getLocalStorage<TimelineEvent[]>("wedora_timeline", []);
+      const updated = events.filter((e) => e.id !== id);
+      setLocalStorage("wedora_timeline", updated);
     }
     return true;
   }

@@ -81,7 +81,12 @@ CREATE TABLE IF NOT EXISTS vendors (
     name VARCHAR(255) NOT NULL,
     category VARCHAR(100) NOT NULL, -- dekorasi | katering | dokumentasi | rias
     contact VARCHAR(100),
+    contact_name VARCHAR(255),
+    contact_phone VARCHAR(100),
+    contact_email VARCHAR(255),
     rating NUMERIC(2, 1) DEFAULT 5.0,
+    price_range VARCHAR(100),
+    notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -95,6 +100,7 @@ CREATE TABLE IF NOT EXISTS documents (
     category VARCHAR(100) DEFAULT 'Dokumen', -- Kontrak | Moodboard | Invoice
     size VARCHAR(50),
     url TEXT NOT NULL,
+    uploaded_by VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -102,13 +108,30 @@ CREATE TABLE IF NOT EXISTS documents (
 CREATE TABLE IF NOT EXISTS activities (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     user_name VARCHAR(255) NOT NULL,
     action VARCHAR(255) NOT NULL,
+    entity_type VARCHAR(100),
+    entity_id VARCHAR(255),
     entity_name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 9. Tabel Notifikasi Instan
+-- 9. Tabel Timeline Acara (Rundown Hari-H)
+CREATE TABLE IF NOT EXISTS timeline_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    project_id UUID REFERENCES wedding_projects(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    time VARCHAR(10) NOT NULL,
+    location TEXT,
+    pic VARCHAR(255),
+    category VARCHAR(50) DEFAULT 'lainnya',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 10. Tabel Notifikasi Instan
 CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -129,6 +152,7 @@ ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vendors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE timeline_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- Contoh Kebijakan Multi-Tenant:

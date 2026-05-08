@@ -155,9 +155,10 @@ export interface Document {
   project_id?: string;
   name: string;
   type: DocumentType;
+  category?: string;
   url: string;
-  size?: number;
-  uploaded_by: string;
+  size?: string;
+  uploaded_by?: string;
   created_at: string;
 }
 
@@ -195,6 +196,7 @@ export interface Activity {
 
 export interface TimelineEvent {
   id: string;
+  org_id?: string;
   project_id: string;
   title: string;
   description?: string;
@@ -202,6 +204,7 @@ export interface TimelineEvent {
   location?: string;
   pic?: string; // person in charge
   category: "ceremony" | "reception" | "preparation" | "vendor" | "lainnya";
+  created_at?: string;
 }
 
 // ============================================================

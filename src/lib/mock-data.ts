@@ -1,5 +1,5 @@
 import {
-  WeddingProject, Task, Payment, Vendor,
+  WeddingProject, Task, Payment, Vendor, Document,
   Activity, Notification, DashboardStats, User, Organization, TimelineEvent,
 } from "@/types";
 
@@ -126,15 +126,15 @@ export const mockTimeline: TimelineEvent[] = [
   { id: "tl-006", project_id: "proj-001", title: "Penutupan & Bersih-bersih", time: "17:00", location: "Grand Ballroom", pic: "Budi Santoso", category: "lainnya" },
 ];
 
-export const mockDocuments = [
-  { id: "doc-001", name: "Kontrak Kerja - Anisa & Reza", type: "file", category: "Kontrak", size: "2.4 MB", date: "01 Des 2025", project_id: "proj-001" },
-  { id: "doc-002", name: "Invoice DP 30% - Anisa & Reza", type: "file", category: "Invoice", size: "1.1 MB", date: "15 Des 2025", project_id: "proj-001" },
-  { id: "doc-003", name: "Moodboard Garden Party - Nude & Dusty Pink", type: "image", category: "Moodboard & Foto", size: "8.5 MB", date: "10 Jan 2026", project_id: "proj-001" },
-  { id: "doc-004", name: "Kontrak Kerja - Maya & Dian", type: "file", category: "Kontrak", size: "2.2 MB", date: "10 Jan 2026", project_id: "proj-002" },
-  { id: "doc-005", name: "Inspirasi Dekorasi Sage Green", type: "image", category: "Moodboard & Foto", size: "12.3 MB", date: "20 Feb 2026", project_id: "proj-002" },
-  { id: "doc-006", name: "Invoice Pelunasan - Dewi & Andi", type: "file", category: "Invoice", size: "980 KB", date: "25 Okt 2025", project_id: "proj-004" },
-  { id: "doc-007", name: "Foto Venue Ayana Midplaza", type: "image", category: "Moodboard & Foto", size: "5.7 MB", date: "10 Mei 2026", project_id: "proj-002" },
-  { id: "doc-008", name: "Rundown Hari-H Anisa & Reza", type: "file", category: "Kontrak", size: "1.8 MB", date: "01 Mei 2026", project_id: "proj-001" },
+export const mockDocuments: Document[] = [
+  { id: "doc-001", org_id: "org-001", name: "Kontrak Kerja - Anisa & Reza", type: "kontrak", category: "Kontrak", size: "2.4 MB", url: "#", uploaded_by: "user-001", created_at: "2025-12-01T00:00:00Z", project_id: "proj-001" },
+  { id: "doc-002", org_id: "org-001", name: "Invoice DP 30% - Anisa & Reza", type: "invoice", category: "Invoice", size: "1.1 MB", url: "#", uploaded_by: "user-001", created_at: "2025-12-15T00:00:00Z", project_id: "proj-001" },
+  { id: "doc-003", org_id: "org-001", name: "Moodboard Garden Party - Nude & Dusty Pink", type: "moodboard", category: "Moodboard & Foto", size: "8.5 MB", url: "#", uploaded_by: "user-002", created_at: "2026-01-10T00:00:00Z", project_id: "proj-001" },
+  { id: "doc-004", org_id: "org-001", name: "Kontrak Kerja - Maya & Dian", type: "kontrak", category: "Kontrak", size: "2.2 MB", url: "#", uploaded_by: "user-001", created_at: "2026-01-10T00:00:00Z", project_id: "proj-002" },
+  { id: "doc-005", org_id: "org-001", name: "Inspirasi Dekorasi Sage Green", type: "foto", category: "Moodboard & Foto", size: "12.3 MB", url: "#", uploaded_by: "user-003", created_at: "2026-02-20T00:00:00Z", project_id: "proj-002" },
+  { id: "doc-006", org_id: "org-001", name: "Invoice Pelunasan - Dewi & Andi", type: "invoice", category: "Invoice", size: "980 KB", url: "#", uploaded_by: "user-001", created_at: "2025-10-25T00:00:00Z", project_id: "proj-004" },
+  { id: "doc-007", org_id: "org-001", name: "Foto Venue Ayana Midplaza", type: "foto", category: "Moodboard & Foto", size: "5.7 MB", url: "#", uploaded_by: "user-002", created_at: "2026-05-10T00:00:00Z", project_id: "proj-002" },
+  { id: "doc-008", org_id: "org-001", name: "Rundown Hari-H Anisa & Reza", type: "dokumen", category: "Kontrak", size: "1.8 MB", url: "#", uploaded_by: "user-001", created_at: "2026-05-01T00:00:00Z", project_id: "proj-001" },
 ];
 
 export const mockRevenueData = [

@@ -282,6 +282,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("wedora_tasks");
     localStorage.removeItem("wedora_payments");
     localStorage.removeItem("wedora_vendors");
+    localStorage.removeItem("wedora_documents");
+    localStorage.removeItem("wedora_activities");
+    localStorage.removeItem("wedora_timeline");
     setUser(null);
     router.push("/login");
   };
