@@ -88,7 +88,7 @@ export default function DashboardPage() {
     .filter((t) => t.status !== "done")
     .slice(0, 4);
 
-  const activities: any[] = [];
+  const activities = mockActivities;
 
   return (
     <AppLayout>
