@@ -277,6 +277,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       supabase.auth.signOut().catch(console.error);
     }
     localStorage.removeItem("wedora_active_session");
+    // Clear wedding data keys to prevent data leaking between accounts
+    localStorage.removeItem("wedora_projects");
+    localStorage.removeItem("wedora_tasks");
+    localStorage.removeItem("wedora_payments");
+    localStorage.removeItem("wedora_vendors");
     setUser(null);
     router.push("/login");
   };
