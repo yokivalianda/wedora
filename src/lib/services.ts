@@ -72,23 +72,31 @@ const setLocalStorage = <T>(key: string, data: T) => {
 };
 
 /**
- * Merge Supabase data with localStorage fallback data.
- * Supabase items take precedence; local-only items are appended.
- * For demo accounts, always use mock data as the base instead of localStorage.
+ * Get data with proper isolation.
+ * - If Supabase is configured: ONLY use Supabase data (RLS handles isolation)
+ * - If Supabase not configured: fall back to localStorage
+ * - Demo accounts: merge Supabase data with mock data
  */
 const mergeWithLocal = <T extends { id: string }>(
   supabaseData: T[],
   localKey: string,
   fallback: T[]
 ): T[] => {
-  // Demo accounts always use mock data as base; never read from localStorage
+  // Demo accounts: merge Supabase + mock data
   if (isDemoAccount()) {
     const supabaseIds = new Set(supabaseData.map((item) => item.id));
     return [...supabaseData, ...fallback.filter((item) => !supabaseIds.has(item.id))];
   }
+
+  // If Supabase is configured, ONLY trust Supabase data (RLS guarantees isolation)
+  // Do NOT mix in localStorage data — it may contain data from other users
+  if (isSupabaseConfigured()) {
+    return supabaseData;
+  }
+
+  // Supabase not configured: use localStorage as sole data source
   const localData = getLocalStorage<T[]>(localKey, fallback);
-  const supabaseIds = new Set(supabaseData.map((item) => item.id));
-  return [...supabaseData, ...localData.filter((item) => !supabaseIds.has(item.id))];
+  return localData;
 };
 
 // ============================================================
