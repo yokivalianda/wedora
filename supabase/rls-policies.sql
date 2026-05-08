@@ -146,7 +146,7 @@ CREATE POLICY "tasks_delete_policy" ON tasks
 CREATE POLICY "payments_select_policy" ON payments
     FOR SELECT USING (
         org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        OR org_id IS NULL
     );
 
 CREATE POLICY "payments_insert_policy" ON payments
@@ -158,13 +158,13 @@ CREATE POLICY "payments_insert_policy" ON payments
 CREATE POLICY "payments_update_policy" ON payments
     FOR UPDATE USING (
         org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        OR org_id IS NULL
     );
 
 CREATE POLICY "payments_delete_policy" ON payments
     FOR DELETE USING (
         org_id = public.get_user_org_id()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        OR org_id IS NULL
     );
 
 -- ==========================================

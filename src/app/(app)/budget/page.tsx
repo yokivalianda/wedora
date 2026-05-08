@@ -89,6 +89,10 @@ export default function BudgetPage() {
         entity_name: saved.notes || "Transaksi",
         created_at: new Date().toISOString()
       }).catch(console.warn);
+    }).catch((err) => {
+      console.error("Gagal mencatat transaksi:", err);
+      // Still add to local state so user sees it
+      setPayments((prev) => [newPayment, ...prev]);
     });
 
     // Reset Form
