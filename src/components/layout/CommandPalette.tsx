@@ -125,7 +125,6 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
   const categories = Array.from(new Set(filteredItems.map(i => i.category)));
 
   // Map each item to its absolute index in filteredItems
-  let itemCounter = 0;
 
   return (
     <AnimatePresence>
@@ -184,13 +183,13 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
                         {category}
                       </div>
                       {categoryItems.map((item) => {
-                        const currentGlobalIndex = itemCounter++;
-                        const isSelected = currentGlobalIndex === selectedIndex;
+                        const globalIndex = filteredItems.indexOf(item);
+                        const isSelected = globalIndex === selectedIndex;
                         return (
                           <div
                             key={item.name}
                             onClick={() => handleSelect(item.href)}
-                            onMouseEnter={() => setSelectedIndex(currentGlobalIndex)}
+                            onMouseEnter={() => setSelectedIndex(globalIndex)}
                             className={`flex items-center justify-between rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-150 ${
                               isSelected 
                                 ? "bg-[#FAF7E8] text-[#1E1E1E]" 

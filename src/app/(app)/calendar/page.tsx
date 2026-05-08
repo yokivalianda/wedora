@@ -58,7 +58,7 @@ export default function CalendarPage() {
         <div className="space-y-4">
           <h3 className="font-heading text-xl font-semibold text-[#1E1E1E] text-left">Susunan Acara (Rundown) Hari-H</h3>
           <div className="relative border-l border-[#ECE7E1] ml-4 pl-6 space-y-8 py-2 text-left">
-            {([] as any[]).map((item) => (
+            {mockTimeline.filter(t => t.project_id === weddingProject?.id).map((item) => (
               <div key={item.id} className="relative">
                 {/* Visual Circle Indicator */}
                 <span className="absolute -left-10 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-white border-2 border-[#D4AF37] text-[11px] font-bold text-[#1E1E1E]">
