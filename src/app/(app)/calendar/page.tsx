@@ -1,12 +1,26 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
-import { mockTimeline, mockProjects } from "@/lib/mock-data";
+import { mockTimeline } from "@/lib/mock-data";
+import { projectService } from "@/lib/services";
+import { WeddingProject } from "@/types";
 import { Calendar, Clock, MapPin, User, Plus } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, daysUntil } from "@/lib/utils";
 
 export default function CalendarPage() {
-  const weddingProject = mockProjects[0]; // Ritz-Carlton wedding (Anisa & Reza)
+  const [projects, setProjects] = useState<WeddingProject[]>([]);
+
+  useEffect(() => {
+    projectService.getAll().then(setProjects);
+  }, []);
+
+  // Show the nearest upcoming/active project instead of hardcoding the first one
+  const upcomingProjects = projects
+    .filter((p) => daysUntil(p.wedding_date) >= -1)
+    .sort((a, b) => new Date(a.wedding_date).getTime() - new Date(b.wedding_date).getTime());
+
+  const weddingProject = upcomingProjects[0] || projects[0];
 
   return (
     <AppLayout>
@@ -24,15 +38,21 @@ export default function CalendarPage() {
         </div>
 
         {/* Project Context Box */}
-        <div className="rounded-2xl border border-[#ECE7E1] bg-white p-6 text-left shadow-soft space-y-2">
-          <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider">Jadwal Rundown Aktif</span>
-          <h2 className="font-heading text-2xl font-bold text-[#1E1E1E] tracking-tight">
-            Pernikahan {weddingProject.bride_name} & {weddingProject.groom_name}
-          </h2>
-          <p className="text-xs text-[#666666]">
-            Hari H Pernikahan: <strong>{formatDate(weddingProject.wedding_date)}</strong> • Lokasi: {weddingProject.venue}
-          </p>
-        </div>
+        {weddingProject ? (
+          <div className="rounded-2xl border border-[#ECE7E1] bg-white p-6 text-left shadow-soft space-y-2">
+            <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider">Jadwal Rundown Aktif</span>
+            <h2 className="font-heading text-2xl font-bold text-[#1E1E1E] tracking-tight">
+              Pernikahan {weddingProject.bride_name} & {weddingProject.groom_name}
+            </h2>
+            <p className="text-xs text-[#666666]">
+              Hari H Pernikahan: <strong>{formatDate(weddingProject.wedding_date)}</strong> • Lokasi: {weddingProject.venue}
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-[#ECE7E1] bg-white p-6 text-left shadow-soft space-y-2">
+            <p className="text-sm text-[#666666]">Tidak ada proyek aktif untuk ditampilkan rundown-nya.</p>
+          </div>
+        )}
 
         {/* Timeline Event Tracks */}
         <div className="space-y-4">

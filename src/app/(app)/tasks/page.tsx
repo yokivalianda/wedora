@@ -3,16 +3,16 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/layout/AppLayout";
-import { mockProjects, mockUsers } from "@/lib/mock-data";
-import { Task } from "@/types";
-import { taskService } from "@/lib/services";
+import { mockUsers } from "@/lib/mock-data";
+import { Task, WeddingProject } from "@/types";
+import { taskService, projectService } from "@/lib/services";
 import { 
   TASK_PRIORITY_LABELS, 
   TASK_PRIORITY_COLORS, 
   TASK_STATUS_LABELS,
   formatDateShort
 } from "@/lib/utils";
-import { CheckSquare, Square, Plus, Calendar, User, Tag, Search, ArrowRight, X, Sparkles, AlertCircle } from "lucide-react";
+import { CheckSquare, Square, Plus, Calendar, User, Search, X, Sparkles, Trash2 } from "lucide-react";
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -27,6 +27,12 @@ export default function TasksPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Form State
+  const [projects, setProjects] = useState<WeddingProject[]>([]);
+
+  useEffect(() => {
+    projectService.getAll().then(setProjects);
+  }, []);
+
   const [title, setTitle] = useState("");
   const [assigneeName, setAssigneeName] = useState("Lina Permata");
   const [dueDate, setDueDate] = useState("");
@@ -40,6 +46,13 @@ export default function TasksPage() {
           prev.map((task) => (task.id === id ? updatedTask : task))
         );
       }
+    });
+  };
+
+  const handleDelete = (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus tugas ini?")) return;
+    taskService.delete(id).then(() => {
+      setTasks((prev) => prev.filter((t) => t.id !== id));
     });
   };
 
@@ -139,7 +152,7 @@ export default function TasksPage() {
           <div className="space-y-3">
             {filteredTasks.map((task) => {
               const isCompleted = task.status === "done";
-              const linkedProject = mockProjects.find(p => p.id === task.project_id);
+              const linkedProject = projects.find(p => p.id === task.project_id);
               return (
                 <div 
                   key={task.id}
@@ -191,9 +204,18 @@ export default function TasksPage() {
                     </div>
                   </div>
 
-                  <span className={`rounded-full px-2.5 py-0.5 text-[9px] font-semibold shrink-0 uppercase tracking-wider ${TASK_PRIORITY_COLORS[task.priority]}`}>
-                    {TASK_PRIORITY_LABELS[task.priority]}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => handleDelete(task.id)}
+                      className="text-[#666666] hover:text-rose-500 transition-colors"
+                      title="Hapus Tugas"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <span className={`rounded-full px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${TASK_PRIORITY_COLORS[task.priority]}`}>
+                      {TASK_PRIORITY_LABELS[task.priority]}
+                    </span>
+                  </div>
                 </div>
               );
             })}
@@ -297,7 +319,7 @@ export default function TasksPage() {
                       className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none text-[#1E1E1E]"
                     >
                       <option value="">-- Tugas Umum (Tanpa Proyek) --</option>
-                      {mockProjects.map(p => (
+                      {projects.map(p => (
                         <option key={p.id} value={p.id}>Pernikahan {p.bride_name} & {p.groom_name}</option>
                       ))}
                     </select>

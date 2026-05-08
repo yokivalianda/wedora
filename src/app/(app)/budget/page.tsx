@@ -3,29 +3,40 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/layout/AppLayout";
-import { mockProjects } from "@/lib/mock-data";
-import { Payment } from "@/types";
-import { paymentService } from "@/lib/services";
+import { Payment, WeddingProject } from "@/types";
+import { paymentService, projectService } from "@/lib/services";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { DollarSign, Clock, CheckCircle, AlertCircle, Plus, Receipt, X, Sparkles } from "lucide-react";
+import { DollarSign, Clock, CheckCircle, AlertCircle, Plus, Receipt, X, Sparkles, Trash2 } from "lucide-react";
 
 export default function BudgetPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [projects, setProjects] = useState<WeddingProject[]>([]);
 
   useEffect(() => {
     paymentService.getAll().then((data) => setPayments(data));
+    projectService.getAll().then((data) => {
+      setProjects(data);
+      if (data.length > 0) setProjectId(data[0].id);
+    });
   }, []);
 
   // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Form State
-  const [projectId, setProjectId] = useState(mockProjects[0]?.id || "");
+  const [projectId, setProjectId] = useState("");
   const [type, setType] = useState<"dp" | "pelunasan" | "vendor" | "pengeluaran">("dp");
   const [amount, setAmount] = useState("");
-  const [status, setStatus] = useState<"dibayar" | "menunggu">("dibayar");
+  const [status, setStatus] = useState<"dibayar" | "menunggu" | "terlambat">("dibayar");
   const [paymentDate, setPaymentDate] = useState("");
   const [notes, setNotes] = useState("");
+
+  const handleDelete = (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) return;
+    paymentService.delete(id).then(() => {
+      setPayments((prev) => prev.filter((p) => p.id !== id));
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +50,7 @@ export default function BudgetPage() {
       amount: Number(amount),
       status: status,
       payment_date: status === "dibayar" ? (paymentDate || new Date().toISOString().split("T")[0]) : undefined,
-      due_date: status === "menunggu" ? (paymentDate || new Date().toISOString().split("T")[0]) : undefined,
+      due_date: status !== "dibayar" ? (paymentDate || new Date().toISOString().split("T")[0]) : undefined,
       notes: notes || `${type.toUpperCase()} Pernikahan`,
       created_at: new Date().toISOString()
     };
@@ -61,7 +72,7 @@ export default function BudgetPage() {
     .reduce((sum, p) => sum + p.amount, 0);
 
   const totalPending = payments
-    .filter((p) => p.status === "menunggu")
+    .filter((p) => p.status === "menunggu" || p.status === "terlambat")
     .reduce((sum, p) => sum + p.amount, 0);
 
   const grandTotal = totalPaid + totalPending;
@@ -136,12 +147,13 @@ export default function BudgetPage() {
                     <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-[#1E1E1E]">Tanggal</th>
                     <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-[#1E1E1E]">Nominal</th>
                     <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-[#1E1E1E]">Status</th>
+                    <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-[#1E1E1E]">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#ECE7E1] bg-white">
                   {payments.map((p) => {
                     const isPaid = p.status === "dibayar";
-                    const linkedProject = mockProjects.find(pro => pro.id === p.project_id);
+                    const linkedProject = projects.find(pro => pro.id === p.project_id);
                     return (
                       <tr key={p.id} className="hover:bg-[#FAF7F2]/20 transition-colors">
                         <td className="whitespace-nowrap px-6 py-4 text-left text-sm">
@@ -166,10 +178,24 @@ export default function BudgetPage() {
                           {formatCurrency(p.amount)}
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-left text-sm">
-                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${isPaid ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-600"
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${
+                            isPaid
+                              ? "bg-emerald-50 text-emerald-700"
+                              : p.status === "terlambat"
+                                ? "bg-rose-50 text-rose-600"
+                                : "bg-amber-50 text-amber-600"
                             }`}>
-                            {isPaid ? "Dibayar" : "Menunggu"}
+                            {isPaid ? "Dibayar" : p.status === "terlambat" ? "Terlambat" : "Menunggu"}
                           </span>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-left text-sm">
+                          <button
+                            onClick={() => handleDelete(p.id)}
+                            className="text-[#666666] hover:text-rose-500 transition-colors"
+                            title="Hapus Transaksi"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </td>
                       </tr>
                     );
@@ -225,7 +251,7 @@ export default function BudgetPage() {
                     onChange={(e) => setProjectId(e.target.value)}
                     className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none text-[#1E1E1E]"
                   >
-                    {mockProjects.map(p => (
+                    {projects.map(p => (
                       <option key={p.id} value={p.id}>Pernikahan {p.bride_name} & {p.groom_name}</option>
                     ))}
                   </select>
@@ -255,6 +281,7 @@ export default function BudgetPage() {
                     >
                       <option value="dibayar">Lunas / Dibayar</option>
                       <option value="menunggu">Menunggu Pelunasan</option>
+                      <option value="terlambat">Terlambat</option>
                     </select>
                   </div>
                 </div>

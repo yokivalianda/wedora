@@ -13,7 +13,7 @@ import {
   PROJECT_STATUS_COLORS,
   calculateProgress
 } from "@/lib/utils";
-import { Calendar, Users, Plus, ChevronRight, MapPin, Search, X, Sparkles, DollarSign, ListTodo } from "lucide-react";
+import { Calendar, Users, Plus, ChevronRight, MapPin, Search, X, Sparkles, DollarSign, ListTodo, Trash2 } from "lucide-react";
 
 export default function ProjectsView() {
   const [projects, setProjects] = useState<WeddingProject[]>([]);
@@ -80,6 +80,13 @@ export default function ProjectsView() {
     setBudgetTotal("");
     setNotes("");
     setIsAddModalOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus proyek ini?")) return;
+    projectService.delete(id).then(() => {
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+    });
   };
 
   const tabs = [
@@ -206,10 +213,19 @@ export default function ProjectsView() {
                       <Users className="h-4 w-4 text-[#666666]" />
                       <span>{project.assigned_staff.length} Kordinator</span>
                     </div>
-                    <Link href={`/projects/${project.id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-[#D4AF37] hover:underline">
-                      <span>Detail Proyek</span>
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleDelete(project.id)}
+                        className="text-[#666666] hover:text-rose-500 transition-colors"
+                        title="Hapus Proyek"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <Link href={`/projects/${project.id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-[#D4AF37] hover:underline">
+                        <span>Detail Proyek</span>
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
               );

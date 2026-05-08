@@ -32,11 +32,10 @@ export default function LoginPage() {
 
     const res = await login(email, password);
     setIsLoading(false);
-    if (res.success) {
-      router.push("/dashboard");
-    } else {
+    if (!res.success) {
       setError(res.error || "Gagal masuk.");
     }
+    // Redirect is handled by the useEffect above based on isAuthenticated & onboarding state
   };
 
   return (

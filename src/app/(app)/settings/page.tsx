@@ -98,10 +98,11 @@ export default function SettingsPage() {
                   <input 
                     type="email" 
                     value={email} 
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/50 px-4 py-2.5 text-sm focus:border-[#D4AF37] focus:outline-none"
-                    required
+                    disabled
+                    title="Email tidak dapat diubah dari sini. Hubungi admin untuk perubahan email."
+                    className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/20 px-4 py-2.5 text-sm text-[#666666] cursor-not-allowed"
                   />
+                  <p className="text-[10px] text-[#666666] mt-1">Email tidak dapat diubah langsung untuk keamanan akun.</p>
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#666666]">Jabatan / Role</label>

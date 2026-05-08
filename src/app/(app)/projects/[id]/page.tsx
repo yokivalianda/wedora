@@ -1,17 +1,13 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useParams } from "next/navigation";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/layout/AppLayout";
-import { 
-  mockProjects, 
-  mockTasks, 
-  mockPayments, 
-  mockTimeline,
-  mockUsers 
-} from "@/lib/mock-data";
+import { mockTimeline, mockUsers } from "@/lib/mock-data";
+import { projectService, taskService, paymentService } from "@/lib/services";
+import { WeddingProject, Task, Payment } from "@/types";
 import { 
   formatCurrency, 
   formatDate, 
@@ -22,46 +18,61 @@ import {
   calculateProgress
 } from "@/lib/utils";
 import { 
-  ArrowLeft, 
-  Calendar, 
-  MapPin, 
-  Users, 
-  DollarSign, 
-  ListTodo, 
-  Clock, 
-  Plus, 
-  ChevronRight, 
-  User, 
-  CheckSquare, 
-  Square, 
+  ArrowLeft,
+  Calendar,
+  MapPin,
+  Users,
+  DollarSign,
+  Clock,
+  Plus,
+  ChevronRight,
+  CheckSquare,
+  Square,
   Sparkles,
   Info,
-  CheckCircle,
   Receipt,
   UserCheck
 } from "lucide-react";
 
 export default function ProjectDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params?.id as string;
-  
-  const project = mockProjects.find((p) => p.id === id);
+
+  const [project, setProject] = useState<WeddingProject | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Active sub-tab
   const [activeTab, setActiveTab] = useState<"overview" | "rundown" | "keuangan" | "checklist">("overview");
 
-  // Dynamic state for tasks to make checklist interactively checkable
-  const [tasks, setTasks] = useState(() => {
-    const existing = mockTasks.filter((t) => t.project_id === id);
-    if (existing.length > 0) return existing;
-    // Default mock tasks specifically for this bride & groom
-    return [
-      { id: "gen-task-1", org_id: "org-001", project_id: id, title: "Konfirmasi menu katering dengan vendor utama", assignee_id: "user-003", assignee_name: "Lina Permata", due_date: "2026-05-25", status: "todo" as const, priority: "high" as const, created_at: "" },
-      { id: "gen-task-2", org_id: "org-001", project_id: id, title: "Finalisasi layout dekorasi panggung pelaminan", assignee_id: "user-002", assignee_name: "Budi Santoso", due_date: "2026-05-30", status: "in_progress" as const, priority: "medium" as const, created_at: "" },
-      { id: "gen-task-3", org_id: "org-001", project_id: id, title: "Rapat koordinasi akhir (Technical Meeting) seluruh vendor", assignee_id: "user-001", assignee_name: "Sari Dewi Rahayu", due_date: "2026-06-05", status: "todo" as const, priority: "high" as const, created_at: "" },
-    ];
-  });
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    Promise.all([
+      projectService.getById(id),
+      taskService.getAll(),
+      paymentService.getAll()
+    ]).then(([projData, taskData, payData]) => {
+      setProject(projData);
+      setTasks(taskData.filter((t) => t.project_id === id));
+      setPayments(payData.filter((p) => p.project_id === id));
+      setLoading(false);
+    });
+  }, [id]);
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 w-48 rounded bg-[#ECE7E1]" />
+            <div className="h-4 w-32 rounded bg-[#ECE7E1]" />
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!project) {
     return (
@@ -72,8 +83,8 @@ export default function ProjectDetailPage() {
           </div>
           <h2 className="font-heading text-2xl font-bold text-[#1E1E1E]">Proyek Tidak Ditemukan</h2>
           <p className="text-sm text-[#666666]">Maaf, rincian proyek pernikahan yang Anda cari tidak ada atau telah dihapus.</p>
-          <Link 
-            href="/projects" 
+          <Link
+            href="/projects"
             className="inline-flex items-center gap-2 rounded-full bg-[#1E1E1E] px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:scale-[1.01] transition-transform"
           >
             <ArrowLeft className="h-4 w-4" /> Kembali ke Daftar Proyek
@@ -83,25 +94,21 @@ export default function ProjectDetailPage() {
     );
   }
 
-  // Handle checking/unchecking tasks locally
+  // Handle checking/unchecking tasks with persistence
   const handleToggleTask = (taskId: string) => {
-    setTasks(prev => prev.map(task => {
-      if (task.id === taskId) {
-        const newStatus = task.status === "done" ? "todo" : "done";
-        return {
-          ...task,
-          status: newStatus
-        };
+    taskService.toggle(taskId).then((updatedTask) => {
+      if (updatedTask) {
+        setTasks((prev) =>
+          prev.map((task) => (task.id === taskId ? updatedTask : task))
+        );
       }
-      return task;
-    }));
+    });
   };
 
-  // Scoped Payments
-  const projectPayments = mockPayments.filter((p) => p.project_id === id);
-  const finalPayments = projectPayments.length > 0 ? projectPayments : [
-    { id: `pay-gen-1`, org_id: "org-001", project_id: id, type: "dp" as const, amount: project.budget_total * 0.3, status: "dibayar" as const, payment_date: "2026-02-15", notes: "Down payment 30% tervalidasi", created_at: "" },
-    { id: `pay-gen-2`, org_id: "org-001", project_id: id, type: "pelunasan" as const, amount: project.budget_total * 0.7, status: "menunggu" as const, due_date: project.wedding_date, notes: "Pelunasan sisa tagihan 70%", created_at: "" }
+  // Scoped Payments (fallback to generated defaults if none exist)
+  const finalPayments = payments.length > 0 ? payments : [
+    { id: `pay-gen-1`, org_id: "org-001", project_id: id, type: "dp" as const, amount: project.budget_total * 0.3, status: "dibayar" as const, payment_date: "2026-02-15", notes: "Down payment 30% tervalidasi", created_at: new Date().toISOString() },
+    { id: `pay-gen-2`, org_id: "org-001", project_id: id, type: "pelunasan" as const, amount: project.budget_total * 0.7, status: "menunggu" as const, due_date: project.wedding_date, notes: "Pelunasan sisa tagihan 70%", created_at: new Date().toISOString() }
   ];
 
   // Financial calculations
@@ -109,7 +116,7 @@ export default function ProjectDetailPage() {
     .filter((p) => p.status === "dibayar")
     .reduce((sum, p) => sum + p.amount, 0);
   const totalPending = finalPayments
-    .filter((p) => p.status === "menunggu")
+    .filter((p) => p.status === "menunggu" || p.status === "terlambat")
     .reduce((sum, p) => sum + p.amount, 0);
 
   // Scoped Timeline
@@ -139,7 +146,7 @@ export default function ProjectDetailPage() {
             href="/projects" 
             className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white border border-[#ECE7E1] text-[#666666] hover:text-[#1E1E1E] transition-colors"
           >
-            <ArrowLeft className="h-4.5 w-4.5" />
+            <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
             <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider">Detail Proyek Pernikahan</span>

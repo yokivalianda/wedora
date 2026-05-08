@@ -7,7 +7,6 @@ import { supabase, isSupabaseConfigured } from "./supabase";
 export interface UserProfile {
   name: string;
   email: string;
-  password?: string;
   orgName?: string;
   location?: string;
   teamSize?: string;
@@ -26,6 +25,19 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Simple localStorage credential store (email -> password) for fallback auth
+const CREDENTIALS_KEY = "wedora_credentials";
+const getCredentials = (): Record<string, string> => {
+  if (typeof window === "undefined") return {};
+  const raw = localStorage.getItem(CREDENTIALS_KEY);
+  return raw ? JSON.parse(raw) : {};
+};
+const saveCredential = (email: string, password: string) => {
+  const creds = getCredentials();
+  creds[email.toLowerCase()] = password;
+  localStorage.setItem(CREDENTIALS_KEY, JSON.stringify(creds));
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -74,15 +86,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Always allow yoki@amara-wo.com / admin123 as an instant local demo user
+      // Allow configurable demo user via env vars (never hardcode credentials in source)
+      const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL;
+      const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
       if (
-        email.toLowerCase() === "yoki@amara-wo.com" &&
-        password === "admin123"
+        demoEmail &&
+        demoPassword &&
+        email.toLowerCase() === demoEmail.toLowerCase() &&
+        password === demoPassword
       ) {
         const demoUser: UserProfile = {
           name: "Yoki Valianda",
-          email: "yoki@amara-wo.com",
-          password: "admin123",
+          email: demoEmail,
           orgName: "Amara Wedding Organizer",
           location: "Palembang",
           teamSize: "1-5",
@@ -98,9 +113,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 2. Fallback to localStorage registered users
       const usersRaw = localStorage.getItem("wedora_users");
       const users: UserProfile[] = usersRaw ? JSON.parse(usersRaw) : [];
+      const creds = getCredentials();
 
       const foundUser = users.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+        (u) => u.email.toLowerCase() === email.toLowerCase() && creds[email.toLowerCase()] === password
       );
 
       if (foundUser) {
@@ -164,9 +180,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const newUser: UserProfile = {
         name,
         email,
-        password,
         onboardingCompleted: false,
       };
+      saveCredential(email, password);
 
       const updatedUsers = [...users, newUser];
       localStorage.setItem("wedora_users", JSON.stringify(updatedUsers));
@@ -182,6 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const completeOnboarding = async (orgName: string, location: string, teamSize: string) => {
     if (!user) return;
+    setIsLoading(true);
 
     // 1. Try to insert organization and update user profile in Supabase
     if (isSupabaseConfigured()) {
@@ -231,6 +248,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
       localStorage.setItem("wedora_users", JSON.stringify(updatedUsers));
     }
+
+    setIsLoading(false);
   };
 
   const logout = () => {
@@ -253,6 +272,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .from("users")
             .update({
               full_name: updated.name,
+            })
+            .eq("email", user.email);
+        }
+
+        if (updated.email) {
+          await supabase
+            .from("users")
+            .update({
+              email: updated.email,
             })
             .eq("email", user.email);
         }
@@ -284,6 +312,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ...updated,
     };
 
+    // Capture original email before mutation for correct localStorage lookup
+    const originalEmail = user.email.toLowerCase();
+
     // Update active session
     localStorage.setItem("wedora_active_session", JSON.stringify(updatedUser));
     setUser(updatedUser);
@@ -293,7 +324,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (usersRaw) {
       const users: UserProfile[] = JSON.parse(usersRaw);
       const updatedUsers = users.map((u) =>
-        u.email.toLowerCase() === user.email.toLowerCase() ? updatedUser : u
+        u.email.toLowerCase() === originalEmail ? updatedUser : u
       );
       localStorage.setItem("wedora_users", JSON.stringify(updatedUsers));
     }

@@ -3,19 +3,20 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Search, 
-  LayoutDashboard, 
-  FolderKanban, 
-  ListTodo, 
-  DollarSign, 
-  Calendar, 
-  Settings, 
-  Plus, 
+import {
+  Search,
+  LayoutDashboard,
+  FolderKanban,
+  ListTodo,
+  DollarSign,
+  Calendar,
+  Settings,
+  Plus,
   Sparkles,
   ArrowRight
 } from "lucide-react";
-import { mockProjects } from "@/lib/mock-data";
+import { projectService } from "@/lib/services";
+import { WeddingProject } from "@/types";
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -73,7 +74,13 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
     { name: "Tambah Tugas Baru", href: "/tasks", icon: Plus, category: "Aksi Cepat" },
   ];
 
-  const projectItems: CommandItem[] = mockProjects.map(proj => ({
+  const [projects, setProjects] = useState<WeddingProject[]>([]);
+
+  useEffect(() => {
+    projectService.getAll().then(setProjects);
+  }, []);
+
+  const projectItems: CommandItem[] = projects.map(proj => ({
     name: `${proj.bride_name} & ${proj.groom_name}`,
     href: `/projects/${proj.id}`,
     icon: Sparkles,

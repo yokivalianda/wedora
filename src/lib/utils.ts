@@ -46,11 +46,14 @@ export function formatDate(dateStr: string): string {
 }
 
 export function formatDateShort(dateStr: string): string {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "-";
   return new Intl.DateTimeFormat("id-ID", {
     day: "numeric",
     month: "short",
     year: "numeric",
-  }).format(new Date(dateStr));
+  }).format(d);
 }
 
 export function formatDateRelative(dateStr: string): string {
@@ -68,7 +71,9 @@ export function formatDateRelative(dateStr: string): string {
 }
 
 export function daysUntil(dateStr: string): number {
+  if (!dateStr) return 0;
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return 0;
   const now = new Date();
   const diffMs = date.getTime() - now.getTime();
   return Math.ceil(diffMs / (1000 * 60 * 60 * 24));

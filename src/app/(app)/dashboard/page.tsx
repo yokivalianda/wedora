@@ -1,13 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import AppLayout from "@/components/layout/AppLayout";
-import {
-  mockDashboardStats,
-  mockProjects,
-  mockTasks,
-  mockActivities
-} from "@/lib/mock-data";
+import { WeddingProject, Task, Payment } from "@/types";
+import { projectService, taskService, paymentService } from "@/lib/services";
 import {
   formatCurrency,
   formatDate,
@@ -33,34 +30,43 @@ import { useAuth } from "@/lib/auth-context";
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const [projects, setProjects] = useState<WeddingProject[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
 
-  const isMockUser =
-    !user ||
-    user?.email?.toLowerCase() === "yoki@amara-wo.com" ||
-    user?.name?.toLowerCase().includes("yoki") ||
-    user?.name?.toLowerCase().includes("sari");
+  useEffect(() => {
+    projectService.getAll().then(setProjects);
+    taskService.getAll().then(setTasks);
+    paymentService.getAll().then(setPayments);
+  }, []);
 
+  // Compute stats dynamically from real data
+  const totalRevenue = payments
+    .filter((p) => p.status === "dibayar")
+    .reduce((sum, p) => sum + p.amount, 0);
 
+  const pendingPayments = payments
+    .filter((p) => p.status === "menunggu" || p.status === "terlambat")
+    .reduce((sum, p) => sum + p.amount, 0);
 
+  const activeProjects = projects.filter(p => p.status === "in_progress" || p.status === "dp_paid").slice(0, 3);
 
+  const pendingTasks = tasks.filter(t => t.status !== "done").slice(0, 4);
 
-  const stats = isMockUser ? mockDashboardStats : {
-    total_projects: 0,
-    active_projects: 0,
-    total_revenue: 0,
-    pending_payments: 0,
-    tasks_due_today: 0,
+  const stats = {
+    total_projects: projects.length,
+    active_projects: projects.filter(p => p.status === "in_progress" || p.status === "dp_paid").length,
+    total_revenue: totalRevenue,
+    pending_payments: pendingPayments,
+    tasks_due_today: tasks.filter(t => {
+      if (!t.due_date || t.status === "done") return false;
+      const due = new Date(t.due_date);
+      const today = new Date();
+      return due.getFullYear() === today.getFullYear() &&
+        due.getMonth() === today.getMonth() &&
+        due.getDate() === today.getDate();
+    }).length,
   };
-
-  const activeProjects = isMockUser
-    ? mockProjects.filter(p => p.status === "in_progress" || p.status === "dp_paid").slice(0, 3)
-    : [];
-
-  const pendingTasks = isMockUser
-    ? mockTasks.filter(t => t.status !== "done").slice(0, 4)
-    : [];
-
-  const activities = isMockUser ? mockActivities : [];
 
   return (
     <AppLayout>
@@ -212,7 +218,12 @@ export default function DashboardPage() {
                           {PROJECT_STATUS_LABELS[project.status]}
                         </span>
                         <span className="text-[11px] text-amber-600 font-semibold uppercase tracking-wide">
-                          {daysUntil(project.wedding_date)} Hari Lagi
+                          {(() => {
+                            const d = daysUntil(project.wedding_date);
+                            if (d < 0) return `${Math.abs(d)} Hari Lalu`;
+                            if (d === 0) return "Hari Ini";
+                            return `${d} Hari Lagi`;
+                          })()}
                         </span>
                       </div>
                       <p className="font-heading text-lg font-semibold text-[#1E1E1E]">
@@ -288,7 +299,7 @@ export default function DashboardPage() {
             <div className="space-y-4">
               <h3 className="font-heading text-xl font-semibold text-[#1E1E1E]">Aktivitas Tim</h3>
               <div className="rounded-2xl border border-[#ECE7E1] bg-white p-5 text-left shadow-soft space-y-4">
-                {activities.length > 0 ? (
+                {false ? (
                   activities.slice(0, 3).map((act) => (
                     <div key={act.id} className="text-left space-y-1">
                       <p className="text-xs font-medium text-[#1E1E1E]">

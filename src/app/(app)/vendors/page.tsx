@@ -6,19 +6,20 @@ import AppLayout from "@/components/layout/AppLayout";
 import { Vendor, VendorCategory } from "@/types";
 import { vendorService } from "@/lib/services";
 import { VENDOR_CATEGORY_LABELS } from "@/lib/utils";
-import { 
-  Sparkles, 
-  Search, 
-  Plus, 
-  Phone, 
-  Mail, 
-  Star, 
-  Tag, 
-  X, 
-  MessageSquare, 
-  MapPin, 
+import {
+  Sparkles,
+  Search,
+  Plus,
+  Phone,
+  Mail,
+  Star,
+  Tag,
+  X,
+  MessageSquare,
+  MapPin,
   Info,
-  DollarSign
+  DollarSign,
+  Trash2
 } from "lucide-react";
 
 export default function VendorsPage() {
@@ -159,14 +160,28 @@ export default function VendorsPage() {
                       <span>{VENDOR_CATEGORY_LABELS[vendor.category]}</span>
                     </span>
 
-                    {/* Rating stars */}
-                    <div className="flex items-center gap-0.5 text-amber-500">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star 
-                          key={i} 
-                          className={`h-3 w-3 ${i < (vendor.rating || 5) ? "fill-amber-500 text-amber-500" : "text-slate-200"}`} 
-                        />
-                      ))}
+                    <div className="flex items-center gap-2">
+                      {/* Rating stars */}
+                      <div className="flex items-center gap-0.5 text-amber-500">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`h-3 w-3 ${i < (vendor.rating || 5) ? "fill-amber-500 text-amber-500" : "text-slate-200"}`}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (!confirm("Apakah Anda yakin ingin menghapus vendor ini?")) return;
+                          vendorService.delete(vendor.id).then(() => {
+                            setVendors((prev) => prev.filter((v) => v.id !== vendor.id));
+                          });
+                        }}
+                        className="text-[#666666] hover:text-rose-500 transition-colors"
+                        title="Hapus Vendor"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
 
