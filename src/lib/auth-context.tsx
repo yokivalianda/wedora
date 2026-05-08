@@ -77,11 +77,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .eq("email", email)
             .single();
 
+          // Also check localStorage for onboarding status as fallback
+          const usersRaw = localStorage.getItem("wedora_users");
+          const localUsers: UserProfile[] = usersRaw ? JSON.parse(usersRaw) : [];
+          const localUser = localUsers.find(
+            (u) => u.email.toLowerCase() === email.toLowerCase()
+          );
+
+          const supabaseOnboarded = !!profileData?.org_id;
+          const localOnboarded = !!localUser?.onboardingCompleted;
+
           const loggedUser: UserProfile = {
-            name: profileData?.full_name || authData.user.user_metadata?.full_name || email.split("@")[0],
+            name: profileData?.full_name || authData.user.user_metadata?.full_name || localUser?.name || email.split("@")[0],
             email: email,
-            orgName: profileData?.organizations?.name || undefined,
-            onboardingCompleted: !!profileData?.org_id,
+            orgName: profileData?.organizations?.name || localUser?.orgName || undefined,
+            location: localUser?.location || undefined,
+            teamSize: localUser?.teamSize || undefined,
+            onboardingCompleted: supabaseOnboarded || localOnboarded,
           };
 
           localStorage.setItem("wedora_active_session", JSON.stringify(loggedUser));
@@ -244,15 +256,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("wedora_active_session", JSON.stringify(updatedUser));
     setUser(updatedUser);
 
-    // Update in users list
+    // Update in users list (add user if not already present)
     const usersRaw = localStorage.getItem("wedora_users");
-    if (usersRaw) {
-      const users: UserProfile[] = JSON.parse(usersRaw);
-      const updatedUsers = users.map((u) =>
-        u.email.toLowerCase() === user.email.toLowerCase() ? updatedUser : u
-      );
-      localStorage.setItem("wedora_users", JSON.stringify(updatedUsers));
+    const users: UserProfile[] = usersRaw ? JSON.parse(usersRaw) : [];
+    const existingIndex = users.findIndex(
+      (u) => u.email.toLowerCase() === user.email.toLowerCase()
+    );
+    if (existingIndex >= 0) {
+      users[existingIndex] = updatedUser;
+    } else {
+      users.push(updatedUser);
     }
+    localStorage.setItem("wedora_users", JSON.stringify(users));
 
     setIsLoading(false);
   };
