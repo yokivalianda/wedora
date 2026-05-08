@@ -62,7 +62,7 @@ export default function TasksPage() {
 
     const newTask: Task = {
       id: `task-gen-${Date.now()}`,
-      org_id: "org-001",
+      org_id: null,
       project_id: projectId || undefined,
       title: title,
       assignee_id: mockUsers.find(u => u.full_name === assigneeName)?.id || "user-003",

@@ -44,7 +44,7 @@ export default function BudgetPage() {
 
     const newPayment: Payment = {
       id: `pay-gen-${Date.now()}`,
-      org_id: "org-001",
+      org_id: null,
       project_id: projectId,
       type: type,
       amount: Number(amount),

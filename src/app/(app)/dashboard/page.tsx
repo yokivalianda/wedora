@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import AppLayout from "@/components/layout/AppLayout";
-import { WeddingProject, Task, Payment } from "@/types";
-import { projectService, taskService, paymentService } from "@/lib/services";
+import {
+  mockActivities
+} from "@/lib/mock-data";
 import {
   formatCurrency,
   formatDate,
@@ -27,46 +28,67 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
+import { projectService, taskService, paymentService } from "@/lib/services";
+import { WeddingProject, Task, Payment } from "@/types";
 
 export default function DashboardPage() {
   const { user } = useAuth();
+
   const [projects, setProjects] = useState<WeddingProject[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    projectService.getAll().then(setProjects);
-    taskService.getAll().then(setTasks);
-    paymentService.getAll().then(setPayments);
+    Promise.all([
+      projectService.getAll(),
+      taskService.getAll(),
+      paymentService.getAll()
+    ])
+      .then(([projectsData, tasksData, paymentsData]) => {
+        setProjects(projectsData || []);
+        setTasks(tasksData || []);
+        setPayments(paymentsData || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch dashboard data:", err);
+        setLoading(false);
+      });
   }, []);
 
-  // Compute stats dynamically from real data
-  const totalRevenue = payments
+  const totalPaid = payments
     .filter((p) => p.status === "dibayar")
     .reduce((sum, p) => sum + p.amount, 0);
 
-  const pendingPayments = payments
+  const totalPending = payments
     .filter((p) => p.status === "menunggu" || p.status === "terlambat")
     .reduce((sum, p) => sum + p.amount, 0);
 
-  const activeProjects = projects.filter(p => p.status === "in_progress" || p.status === "dp_paid").slice(0, 3);
-
-  const pendingTasks = tasks.filter(t => t.status !== "done").slice(0, 4);
+  const todayStr = new Date().toISOString().split("T")[0];
+  const tasksDueTodayCount = tasks.filter(
+    (t) => t.status !== "done" && t.due_date === todayStr
+  ).length;
 
   const stats = {
     total_projects: projects.length,
-    active_projects: projects.filter(p => p.status === "in_progress" || p.status === "dp_paid").length,
-    total_revenue: totalRevenue,
-    pending_payments: pendingPayments,
-    tasks_due_today: tasks.filter(t => {
-      if (!t.due_date || t.status === "done") return false;
-      const due = new Date(t.due_date);
-      const today = new Date();
-      return due.getFullYear() === today.getFullYear() &&
-        due.getMonth() === today.getMonth() &&
-        due.getDate() === today.getDate();
-    }).length,
+    active_projects: projects.filter(
+      (p) => p.status === "in_progress" || p.status === "dp_paid" || p.status === "planning"
+    ).length,
+    total_revenue: totalPaid,
+    pending_payments: totalPending,
+    tasks_due_today: tasksDueTodayCount > 0 ? tasksDueTodayCount : tasks.filter((t) => t.status !== "done").length
   };
+
+  const activeProjects = projects
+    .filter((p) => p.status === "in_progress" || p.status === "dp_paid" || p.status === "planning")
+    .slice(0, 3);
+
+  const pendingTasks = tasks
+    .filter((t) => t.status !== "done")
+    .slice(0, 4);
+
+  const activities = mockActivities;
 
   return (
     <AppLayout>
@@ -218,12 +240,7 @@ export default function DashboardPage() {
                           {PROJECT_STATUS_LABELS[project.status]}
                         </span>
                         <span className="text-[11px] text-amber-600 font-semibold uppercase tracking-wide">
-                          {(() => {
-                            const d = daysUntil(project.wedding_date);
-                            if (d < 0) return `${Math.abs(d)} Hari Lalu`;
-                            if (d === 0) return "Hari Ini";
-                            return `${d} Hari Lagi`;
-                          })()}
+                          {daysUntil(project.wedding_date)} Hari Lagi
                         </span>
                       </div>
                       <p className="font-heading text-lg font-semibold text-[#1E1E1E]">
@@ -299,14 +316,14 @@ export default function DashboardPage() {
             <div className="space-y-4">
               <h3 className="font-heading text-xl font-semibold text-[#1E1E1E]">Aktivitas Tim</h3>
               <div className="rounded-2xl border border-[#ECE7E1] bg-white p-5 text-left shadow-soft space-y-4">
-                {false ? (
+                {activities.length > 0 ? (
                   activities.slice(0, 3).map((act) => (
                     <div key={act.id} className="text-left space-y-1">
                       <p className="text-xs font-medium text-[#1E1E1E]">
                         <span className="font-bold">{act.user_name}</span> {act.action}{" "}
                         <span className="italic">"{act.entity_name}"</span>
                       </p>
-                      <span className="text-[9px] text-[#666666]/70">Mei 7, 2026</span>
+                      <span className="text-[9px] text-[#666666]/70">{act.created_at ? new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(act.created_at)) : 'Baru saja'}</span>
                     </div>
                   ))
                 ) : (

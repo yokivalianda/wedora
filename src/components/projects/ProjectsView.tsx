@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -36,6 +36,9 @@ export default function ProjectsView() {
   const [budgetTotal, setBudgetTotal] = useState("");
   const [notes, setNotes] = useState("");
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
   const filteredProjects = projects.filter((p) => {
     const matchesTab = activeTab === "semua" || p.status === activeTab;
     const matchesSearch =
@@ -45,13 +48,16 @@ export default function ProjectsView() {
     return matchesTab && matchesSearch;
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!brideName || !groomName || !weddingDate || !venue) return;
 
+    setIsSubmitting(true);
+    setSubmitError("");
+
     const newProject: WeddingProject = {
       id: `proj-gen-${Date.now()}`,
-      org_id: "org-001",
+      org_id: null,
       client_id: `client-gen-${Date.now()}`,
       bride_name: brideName,
       groom_name: groomName,
@@ -67,19 +73,24 @@ export default function ProjectsView() {
       updated_at: new Date().toISOString(),
     };
 
-    projectService.create(newProject).then((saved) => {
+    try {
+      const saved = await projectService.create(newProject);
       setProjects((prev) => [saved, ...prev]);
-    });
-    
-    // Reset Form
-    setBrideName("");
-    setGroomName("");
-    setWeddingDate("");
-    setVenue("");
-    setGuestCount("");
-    setBudgetTotal("");
-    setNotes("");
-    setIsAddModalOpen(false);
+
+      // Reset Form & close modal only on success
+      setBrideName("");
+      setGroomName("");
+      setWeddingDate("");
+      setVenue("");
+      setGuestCount("");
+      setBudgetTotal("");
+      setNotes("");
+      setIsAddModalOpen(false);
+    } catch (err: any) {
+      setSubmitError(err?.message || "Gagal menyimpan proyek. Silakan coba lagi.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -359,20 +370,28 @@ export default function ProjectsView() {
                 </div>
 
                 {/* Submit Buttons */}
-                <div className="flex justify-end gap-2 border-t border-[#ECE7E1] pt-4 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setIsAddModalOpen(false)}
-                    className="rounded-full border border-[#ECE7E1] bg-white px-4 py-2 text-xs font-semibold text-[#666666] hover:bg-[#FAF7F2] transition-colors cursor-pointer"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="rounded-full bg-[#1E1E1E] px-5 py-2 text-xs font-semibold text-white hover:scale-[1.01] transition-transform flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span>Mulai Proyek 🌟</span>
-                  </button>
+                <div className="space-y-3 border-t border-[#ECE7E1] pt-4 mt-6">
+                  {submitError && (
+                    <p className="text-xs text-rose-600 font-semibold bg-rose-50 border border-rose-200 rounded-xl px-4 py-2">
+                      ⚠️ {submitError}
+                    </p>
+                  )}
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setIsAddModalOpen(false); setSubmitError(""); }}
+                      className="rounded-full border border-[#ECE7E1] bg-white px-4 py-2 text-xs font-semibold text-[#666666] hover:bg-[#FAF7F2] transition-colors cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="rounded-full bg-[#1E1E1E] px-5 py-2 text-xs font-semibold text-white hover:scale-[1.01] transition-transform flex items-center gap-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    >
+                      {isSubmitting ? 'Menyimpan...' : 'Mulai Proyek'}
+                    </button>
+                  </div>
                 </div>
               </form>
             </motion.div>

@@ -49,7 +49,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const activeSession = localStorage.getItem("wedora_active_session");
 
     if (activeSession) {
-      setUser(JSON.parse(activeSession));
+      try {
+        setUser(JSON.parse(activeSession));
+      } catch (e) {
+        console.warn("Session data corrupt, clearing session:", e);
+        localStorage.removeItem("wedora_active_session");
+      }
     }
     setIsLoading(false);
   }, []);

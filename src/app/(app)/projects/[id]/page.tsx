@@ -462,9 +462,9 @@ export default function ProjectDetailPage() {
                                 className="mt-0.5 text-[#666666] hover:text-[#D4AF37] transition-colors shrink-0"
                               >
                                 {isCompleted ? (
-                                  <CheckSquare className="h-4.5 w-4.5 text-[#D4AF37]" />
+                                  <CheckSquare className="h-5 w-5 text-[#D4AF37]" />
                                 ) : (
-                                  <Square className="h-4.5 w-4.5" />
+                                  <Square className="h-5 w-5" />
                                 )}
                               </button>
 

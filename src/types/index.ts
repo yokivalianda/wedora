@@ -65,7 +65,7 @@ export interface User {
 
 export interface WeddingProject {
   id: string;
-  org_id: string;
+  org_id: string | null;
   client_id: string;
 
   // Pasangan
@@ -97,7 +97,7 @@ export interface WeddingProject {
 
 export interface Task {
   id: string;
-  org_id: string;
+  org_id: string | null;
   project_id?: string;
   title: string;
   description?: string;
@@ -116,7 +116,7 @@ export interface Task {
 
 export interface Payment {
   id: string;
-  org_id: string;
+  org_id: string | null;
   project_id: string;
   type: PaymentType;
   amount: number;
@@ -133,7 +133,7 @@ export interface Payment {
 
 export interface Vendor {
   id: string;
-  org_id: string;
+  org_id: string | null;
   name: string;
   category: VendorCategory;
   contact_name?: string;
