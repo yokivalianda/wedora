@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from "./supabase";
+import { supabase, isSupabaseConfigured, getCurrentUserOrgId } from "./supabase";
 import { WeddingProject, Task, Payment, Vendor, Document, Activity, TimelineEvent } from "@/types";
 import { mockProjects, mockTasks, mockPayments, mockVendors, mockDocuments, mockActivities, mockTimeline } from "./mock-data";
 import { isDemoAccount } from "./demo";

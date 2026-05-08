@@ -172,15 +172,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { success: false, error: authError.message };
         }
 
-        // Try to insert profile to public.users table (might fail if RLS policies are strict, so we wrap in try-catch)
-        try {
-          await supabase.from("users").insert({
-            email,
-            full_name: name,
-            role: "owner",
-          });
-        } catch (e) {
-          console.warn("Failed to insert into public.users table, continuing with auth user: ", e);
+        // Insert profile to public.users table with auth.uid() as id so RLS policies work correctly
+        if (authData?.user) {
+          try {
+            const { error: insertError } = await supabase.from("users").insert({
+              id: authData.user.id,
+              email,
+              full_name: name,
+              role: "owner",
+            });
+            if (insertError) {
+              console.warn("Failed to insert into public.users table:", insertError.message);
+            }
+          } catch (e) {
+            console.warn("Failed to insert into public.users table, continuing with auth user: ", e);
+          }
         }
       }
 
@@ -220,6 +226,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 1. Try to insert organization and update user profile in Supabase
     if (isSupabaseConfigured()) {
       try {
+        // Get current auth user to use correct id
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        
         const { data: orgData, error: orgError } = await supabase
           .from("organizations")
           .insert({
@@ -230,14 +239,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .select()
           .single();
 
-        if (orgData && !orgError) {
-          // Update public.users table with the new org_id
-          await supabase
+        if (orgData && !orgError && authUser) {
+          // Update public.users table with the new org_id using auth uid
+          const { error: updateError } = await supabase
             .from("users")
             .update({
               org_id: orgData.id,
             })
-            .eq("email", user.email);
+            .eq("id", authUser.id);
+          
+          if (updateError) {
+            console.warn("Failed to update user org_id:", updateError.message);
+            // Fallback: try by email
+            await supabase
+              .from("users")
+              .update({ org_id: orgData.id })
+              .eq("email", user.email);
+          }
+        } else if (orgError) {
+          console.warn("Failed to create organization:", orgError.message);
         }
       } catch (err) {
         console.warn("Supabase onboarding update failed, continuing with local persistence: ", err);
