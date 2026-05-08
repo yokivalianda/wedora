@@ -172,17 +172,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { success: false, error: authError.message };
         }
 
+        // After signUp, ensure we have an active session.
+        // If Supabase auto-confirms email (no email verification), session is immediate.
+        // If not, we sign in immediately after signup to get a session.
+        if (authData?.user && !authData.session) {
+          // No session = email confirmation might be required, try signing in
+          const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+          if (signInError) {
+            console.warn("Auto sign-in after register failed (email confirmation may be required):", signInError.message);
+          }
+        }
+
         // Insert profile to public.users table with auth.uid() as id so RLS policies work correctly
-        if (authData?.user) {
+        const userId = authData?.user?.id;
+        if (userId) {
           try {
             const { error: insertError } = await supabase.from("users").insert({
-              id: authData.user.id,
+              id: userId,
               email,
               full_name: name,
               role: "owner",
             });
             if (insertError) {
               console.warn("Failed to insert into public.users table:", insertError.message);
+              // If insert fails due to RLS, try upsert approach or log for debugging
+              console.warn("User ID used:", userId);
+            } else {
+              console.log("[register] Successfully inserted user with id:", userId);
             }
           } catch (e) {
             console.warn("Failed to insert into public.users table, continuing with auth user: ", e);
@@ -229,6 +245,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Get current auth user to use correct id
         const { data: { user: authUser } } = await supabase.auth.getUser();
         
+        if (!authUser) {
+          console.warn("[completeOnboarding] No authenticated user found in Supabase");
+        }
+        
         const { data: orgData, error: orgError } = await supabase
           .from("organizations")
           .insert({
@@ -240,21 +260,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single();
 
         if (orgData && !orgError && authUser) {
-          // Update public.users table with the new org_id using auth uid
-          const { error: updateError } = await supabase
+          // First ensure the user row exists (it might not if register insert failed)
+          const { data: existingUser } = await supabase
             .from("users")
-            .update({
+            .select("id")
+            .eq("id", authUser.id)
+            .single();
+
+          if (!existingUser) {
+            // User row doesn't exist yet, create it with org_id
+            const { error: insertErr } = await supabase.from("users").insert({
+              id: authUser.id,
+              email: user.email,
+              full_name: user.name,
+              role: "owner",
               org_id: orgData.id,
-            })
-            .eq("id", authUser.id);
-          
-          if (updateError) {
-            console.warn("Failed to update user org_id:", updateError.message);
-            // Fallback: try by email
-            await supabase
+            });
+            if (insertErr) {
+              console.warn("Failed to insert user during onboarding:", insertErr.message);
+            } else {
+              console.log("[completeOnboarding] Created user with org_id:", orgData.id);
+            }
+          } else {
+            // User row exists, update org_id
+            const { error: updateError } = await supabase
               .from("users")
-              .update({ org_id: orgData.id })
-              .eq("email", user.email);
+              .update({
+                org_id: orgData.id,
+              })
+              .eq("id", authUser.id);
+            
+            if (updateError) {
+              console.warn("Failed to update user org_id:", updateError.message);
+            } else {
+              console.log("[completeOnboarding] Updated user org_id to:", orgData.id);
+            }
           }
         } else if (orgError) {
           console.warn("Failed to create organization:", orgError.message);
