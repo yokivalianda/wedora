@@ -80,35 +80,70 @@ export const projectService = {
 
   async create(project: WeddingProject): Promise<WeddingProject> {
     let created = project;
+    console.log("[projectService.create] Supabase configured:", isSupabaseConfigured());
+    console.log("[projectService.create] Project data:", JSON.stringify(project, null, 2));
+    
     if (isSupabaseConfigured()) {
       try {
+        // Generate UUID if ID is not valid UUID format
+        const generateUUID = () => {
+          if (typeof crypto !== "undefined" && crypto.randomUUID) {
+            return crypto.randomUUID();
+          }
+          return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
+        };
+        
+        // Check if ID is valid UUID v4 format
+        const isValidUUID = (id: string) => {
+          return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+        };
+        
+        const projectId = isValidUUID(project.id) ? project.id : generateUUID();
+        
+        const insertData = {
+          id: projectId,
+          org_id: null,
+          bride_name: project.bride_name,
+          groom_name: project.groom_name,
+          wedding_date: project.wedding_date,
+          venue: project.venue,
+          budget_total: project.budget_total,
+          budget_used: project.budget_used,
+          guest_count: project.guest_count,
+          status: project.status,
+          notes: project.notes,
+          assigned_staff: project.assigned_staff,
+          created_at: project.created_at || new Date().toISOString(),
+          updated_at: project.updated_at || new Date().toISOString()
+        };
+        console.log("[projectService.create] Inserting to Supabase:", JSON.stringify(insertData, null, 2));
+        
         const { data, error } = await supabase
           .from("wedding_projects")
-          .insert({
-            id: project.id,
-            org_id: project.org_id,
-            client_id: project.client_id,
-            bride_name: project.bride_name,
-            groom_name: project.groom_name,
-            wedding_date: project.wedding_date,
-            venue: project.venue,
-            venue_address: project.venue_address || null,
-            budget_total: project.budget_total,
-            budget_used: project.budget_used,
-            guest_count: project.guest_count,
-            status: project.status,
-            notes: project.notes,
-            assigned_staff: project.assigned_staff,
-            tags: project.tags || null,
-            created_at: project.created_at || new Date().toISOString(),
-            updated_at: project.updated_at || new Date().toISOString()
-          })
+          .insert(insertData)
           .select()
           .single();
-        if (!error && data) created = data as WeddingProject;
-      } catch (err) {
-        console.warn("Failed to create project in Supabase:", err);
+        if (error) {
+          console.error("[projectService.create] Supabase insert error:", JSON.stringify(error, null, 2));
+          throw new Error(`Failed to create project: ${error.message || JSON.stringify(error)}`);
+        }
+        console.log("[projectService.create] Supabase success:", JSON.stringify(data, null, 2));
+        if (data) {
+          created = data as WeddingProject;
+        } else {
+          // If Supabase returns no data, use the UUID we generated
+          created = { ...project, id: projectId };
+        }
+      } catch (err: any) {
+        console.error("[projectService.create] Failed:", err);
+        throw new Error(err?.message || "Failed to create project in Supabase");
       }
+    } else {
+      console.log("[projectService.create] Supabase not configured, skipping");
     }
     const projects = getLocalStorage<WeddingProject[]>("wedora_projects", mockProjects);
     const updated = [created, ...projects.filter((p) => p.id !== created.id)];
@@ -120,15 +155,33 @@ export const projectService = {
     let updatedProject: WeddingProject | null = null;
     if (isSupabaseConfigured()) {
       try {
+        // Only update fields that exist in Supabase schema
+        const updateData: any = { updated_at: new Date().toISOString() };
+        if (project.bride_name !== undefined) updateData.bride_name = project.bride_name;
+        if (project.groom_name !== undefined) updateData.groom_name = project.groom_name;
+        if (project.wedding_date !== undefined) updateData.wedding_date = project.wedding_date;
+        if (project.venue !== undefined) updateData.venue = project.venue;
+        if (project.budget_total !== undefined) updateData.budget_total = project.budget_total;
+        if (project.budget_used !== undefined) updateData.budget_used = project.budget_used;
+        if (project.guest_count !== undefined) updateData.guest_count = project.guest_count;
+        if (project.status !== undefined) updateData.status = project.status;
+        if (project.notes !== undefined) updateData.notes = project.notes;
+        if (project.assigned_staff !== undefined) updateData.assigned_staff = project.assigned_staff;
+        
         const { data, error } = await supabase
           .from("wedding_projects")
-          .update({ ...project, updated_at: new Date().toISOString() })
+          .update(updateData)
           .eq("id", id)
           .select()
           .single();
-        if (!error && data) updatedProject = data as WeddingProject;
-      } catch (err) {
-        console.warn("Failed to update project in Supabase:", err);
+        if (error) {
+          console.error("Supabase update error:", error);
+          throw new Error(`Failed to update project: ${error.message}`);
+        }
+        if (data) updatedProject = data as WeddingProject;
+      } catch (err: any) {
+        console.error("Failed to update project in Supabase:", err);
+        throw new Error(err?.message || "Failed to update project in Supabase");
       }
     }
     const projects = getLocalStorage<WeddingProject[]>("wedora_projects", mockProjects);
@@ -184,28 +237,53 @@ export const taskService = {
     let created = task;
     if (isSupabaseConfigured()) {
       try {
+        // Generate UUID if ID is not valid UUID format
+        const generateUUID = () => {
+          if (typeof crypto !== "undefined" && crypto.randomUUID) {
+            return crypto.randomUUID();
+          }
+          return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
+        };
+        const isValidUUID = (id: string) => {
+          return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+        };
+        const taskId = isValidUUID(task.id) ? task.id : generateUUID();
+        
         const { data, error } = await supabase
           .from("tasks")
           .insert({
-            id: task.id,
-            org_id: task.org_id,
+            id: taskId,
+            org_id: null, // Set to null to avoid FK constraint
             project_id: task.project_id || null,
             title: task.title,
             description: task.description || null,
-            assignee_id: task.assignee_id || null,
-            assignee_name: task.assignee_name || null,
             due_date: task.due_date || null,
             status: task.status,
             priority: task.priority,
-            completed_at: null,
             created_at: task.created_at || new Date().toISOString()
           })
           .select()
           .single();
-        if (!error && data) created = data as Task;
-      } catch (err) {
-        console.warn("Failed to create task in Supabase:", err);
+        if (error) {
+          console.error("[taskService.create] Supabase insert error:", JSON.stringify(error, null, 2));
+          throw new Error(`Failed to create task: ${error.message || JSON.stringify(error)}`);
+        }
+        console.log("[taskService.create] Supabase success:", JSON.stringify(data, null, 2));
+        if (data) {
+          created = data as Task;
+        } else {
+          created = { ...task, id: taskId };
+        }
+      } catch (err: any) {
+        console.error("[taskService.create] Failed:", err);
+        throw new Error(err?.message || "Failed to create task in Supabase");
       }
+    } else {
+      console.log("[taskService.create] Supabase not configured, skipping");
     }
     const tasks = getLocalStorage<Task[]>("wedora_tasks", mockTasks);
     const updated = [created, ...tasks.filter((t) => t.id !== created.id)];
@@ -229,10 +307,7 @@ export const taskService = {
           const newStatus = existingTask.status === "done" ? "todo" : "done";
           const { data, error } = await supabase
             .from("tasks")
-            .update({
-              status: newStatus,
-              completed_at: newStatus === "done" ? new Date().toISOString() : null
-            })
+            .update({ status: newStatus })
             .eq("id", id)
             .select()
             .single();
@@ -251,11 +326,7 @@ export const taskService = {
       if (t.id === id) {
         if (!targetTask) {
           const newStatus = t.status === "done" ? "todo" : "done";
-          targetTask = {
-            ...t,
-            status: newStatus,
-            completed_at: newStatus === "done" ? new Date().toISOString() : undefined
-          };
+          targetTask = { ...t, status: newStatus };
         }
         return targetTask;
       }
@@ -270,15 +341,28 @@ export const taskService = {
     let updatedTask: Task | null = null;
     if (isSupabaseConfigured()) {
       try {
+        // Only update fields that exist in Supabase schema
+        const updateData: any = {};
+        if (task.title !== undefined) updateData.title = task.title;
+        if (task.description !== undefined) updateData.description = task.description;
+        if (task.due_date !== undefined) updateData.due_date = task.due_date;
+        if (task.status !== undefined) updateData.status = task.status;
+        if (task.priority !== undefined) updateData.priority = task.priority;
+        
         const { data, error } = await supabase
           .from("tasks")
-          .update(task)
+          .update(updateData)
           .eq("id", id)
           .select()
           .single();
-        if (!error && data) updatedTask = data as Task;
-      } catch (err) {
-        console.warn("Failed to update task in Supabase:", err);
+        if (error) {
+          console.error("Supabase task update error:", error);
+          throw new Error(`Failed to update task: ${error.message}`);
+        }
+        if (data) updatedTask = data as Task;
+      } catch (err: any) {
+        console.error("Failed to update task in Supabase:", err);
+        throw new Error(err?.message || "Failed to update task in Supabase");
       }
     }
     const tasks = getLocalStorage<Task[]>("wedora_tasks", mockTasks);
@@ -334,12 +418,28 @@ export const paymentService = {
     let created = payment;
     if (isSupabaseConfigured()) {
       try {
+        // Generate UUID if ID is not valid UUID format
+        const generateUUID = () => {
+          if (typeof crypto !== "undefined" && crypto.randomUUID) {
+            return crypto.randomUUID();
+          }
+          return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
+        };
+        const isValidUUID = (id: string) => {
+          return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+        };
+        const paymentId = isValidUUID(payment.id) ? payment.id : generateUUID();
+        
         const { data, error } = await supabase
           .from("payments")
           .insert({
-            id: payment.id,
-            org_id: payment.org_id,
-            project_id: payment.project_id,
+            id: paymentId,
+            org_id: null, // Set to null to avoid FK constraint
+            project_id: payment.project_id || null,
             amount: payment.amount,
             type: payment.type,
             status: payment.status,
@@ -350,10 +450,22 @@ export const paymentService = {
           })
           .select()
           .single();
-        if (!error && data) created = data as Payment;
-      } catch (err) {
-        console.warn("Failed to create payment in Supabase:", err);
+        if (error) {
+          console.error("[paymentService.create] Supabase insert error:", JSON.stringify(error, null, 2));
+          throw new Error(`Failed to create payment: ${error.message || JSON.stringify(error)}`);
+        }
+        console.log("[paymentService.create] Supabase success:", JSON.stringify(data, null, 2));
+        if (data) {
+          created = data as Payment;
+        } else {
+          created = { ...payment, id: paymentId };
+        }
+      } catch (err: any) {
+        console.error("[paymentService.create] Failed:", err);
+        throw new Error(err?.message || "Failed to create payment in Supabase");
       }
+    } else {
+      console.log("[paymentService.create] Supabase not configured, skipping");
     }
     const payments = getLocalStorage<Payment[]>("wedora_payments", mockPayments);
     const updated = [created, ...payments.filter((p) => p.id !== created.id)];
@@ -365,15 +477,29 @@ export const paymentService = {
     let updatedPayment: Payment | null = null;
     if (isSupabaseConfigured()) {
       try {
+        // Only update fields that exist in Supabase schema
+        const updateData: any = {};
+        if (payment.amount !== undefined) updateData.amount = payment.amount;
+        if (payment.type !== undefined) updateData.type = payment.type;
+        if (payment.status !== undefined) updateData.status = payment.status;
+        if (payment.payment_date !== undefined) updateData.payment_date = payment.payment_date;
+        if (payment.due_date !== undefined) updateData.due_date = payment.due_date;
+        if (payment.notes !== undefined) updateData.notes = payment.notes;
+        
         const { data, error } = await supabase
           .from("payments")
-          .update(payment)
+          .update(updateData)
           .eq("id", id)
           .select()
           .single();
-        if (!error && data) updatedPayment = data as Payment;
-      } catch (err) {
-        console.warn("Failed to update payment in Supabase:", err);
+        if (error) {
+          console.error("Supabase payment update error:", error);
+          throw new Error(`Failed to update payment: ${error.message}`);
+        }
+        if (data) updatedPayment = data as Payment;
+      } catch (err: any) {
+        console.error("Failed to update payment in Supabase:", err);
+        throw new Error(err?.message || "Failed to update payment in Supabase");
       }
     }
     const payments = getLocalStorage<Payment[]>("wedora_payments", mockPayments);
@@ -433,22 +559,22 @@ export const vendorService = {
           .from("vendors")
           .insert({
             id: vendor.id,
-            org_id: vendor.org_id,
+            org_id: null, // Set to null to avoid FK constraint
             name: vendor.name,
             category: vendor.category,
-            contact_name: vendor.contact_name || null,
-            contact_phone: vendor.contact_phone || null,
-            contact_email: vendor.contact_email || null,
             rating: vendor.rating || 5,
-            price_range: vendor.price_range || null,
-            notes: vendor.notes || null,
             created_at: vendor.created_at || new Date().toISOString()
           })
           .select()
           .single();
-        if (!error && data) created = data as Vendor;
-      } catch (err) {
-        console.warn("Failed to create vendor in Supabase:", err);
+        if (error) {
+          console.error("Supabase vendor insert error:", JSON.stringify(error, null, 2));
+          throw new Error(`Failed to create vendor: ${error.message || JSON.stringify(error)}`);
+        }
+        if (data) created = data as Vendor;
+      } catch (err: any) {
+        console.error("Failed to create vendor in Supabase:", err);
+        throw new Error(err?.message || "Failed to create vendor in Supabase");
       }
     }
     const vendors = getLocalStorage<Vendor[]>("wedora_vendors", mockVendors);
@@ -461,15 +587,26 @@ export const vendorService = {
     let updatedVendor: Vendor | null = null;
     if (isSupabaseConfigured()) {
       try {
+        // Only update fields that exist in Supabase schema
+        const updateData: any = {};
+        if (vendor.name !== undefined) updateData.name = vendor.name;
+        if (vendor.category !== undefined) updateData.category = vendor.category;
+        if (vendor.rating !== undefined) updateData.rating = vendor.rating;
+        
         const { data, error } = await supabase
           .from("vendors")
-          .update(vendor)
+          .update(updateData)
           .eq("id", id)
           .select()
           .single();
-        if (!error && data) updatedVendor = data as Vendor;
-      } catch (err) {
-        console.warn("Failed to update vendor in Supabase:", err);
+        if (error) {
+          console.error("Supabase vendor update error:", error);
+          throw new Error(`Failed to update vendor: ${error.message}`);
+        }
+        if (data) updatedVendor = data as Vendor;
+      } catch (err: any) {
+        console.error("Failed to update vendor in Supabase:", err);
+        throw new Error(err?.message || "Failed to update vendor in Supabase");
       }
     }
     const vendors = getLocalStorage<Vendor[]>("wedora_vendors", mockVendors);
