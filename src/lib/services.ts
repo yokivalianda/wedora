@@ -15,6 +15,49 @@ if (typeof window !== "undefined" && !isSupabaseConfigured()) {
 }
 
 // ============================================================
+// ORG ID HELPER — Retrieves the authenticated user's org_id
+// ============================================================
+let cachedOrgId: string | null | undefined = undefined; // undefined = not fetched yet
+
+async function getCurrentOrgId(): Promise<string | null> {
+  if (!isSupabaseConfigured()) return null;
+  if (cachedOrgId !== undefined) return cachedOrgId;
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      cachedOrgId = null;
+      return null;
+    }
+
+    const { data, error } = await supabase
+      .from("users")
+      .select("org_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!error && data) {
+      cachedOrgId = data.org_id;
+      return data.org_id;
+    }
+
+    cachedOrgId = null;
+    return null;
+  } catch (err) {
+    console.warn("[getCurrentOrgId] Failed:", err);
+    cachedOrgId = null;
+    return null;
+  }
+}
+
+// Reset cached org_id when auth state changes (e.g., logout/login)
+if (typeof window !== "undefined" && isSupabaseConfigured()) {
+  supabase.auth.onAuthStateChange(() => {
+    cachedOrgId = undefined;
+  });
+}
+
+// ============================================================
 // LOCAL PERSISTENCE STORAGE HELPERS
 // ============================================================
 const getLocalStorage = <T>(key: string, fallback: T): T => {
@@ -110,10 +153,11 @@ export const projectService = {
         };
         
         const projectId = isValidUUID(project.id) ? project.id : generateUUID();
+        const orgId = await getCurrentOrgId();
         
         const insertData = {
           id: projectId,
-          org_id: null,
+          org_id: orgId,
           bride_name: project.bride_name,
           groom_name: project.groom_name,
           wedding_date: project.wedding_date,
@@ -269,12 +313,13 @@ export const taskService = {
           return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
         };
         const taskId = isValidUUID(task.id) ? task.id : generateUUID();
+        const orgId = await getCurrentOrgId();
         
         const { data, error } = await supabase
           .from("tasks")
           .insert({
             id: taskId,
-            org_id: null, // Set to null to avoid FK constraint
+            org_id: orgId,
             project_id: task.project_id || null,
             title: task.title,
             description: task.description || null,
@@ -468,12 +513,13 @@ export const paymentService = {
           return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
         };
         const paymentId = isValidUUID(payment.id) ? payment.id : generateUUID();
+        const orgId = await getCurrentOrgId();
         
         const { data, error } = await supabase
           .from("payments")
           .insert({
             id: paymentId,
-            org_id: null, // Set to null to avoid FK constraint
+            org_id: orgId,
             project_id: payment.project_id || null,
             amount: payment.amount,
             type: payment.type,
@@ -599,11 +645,12 @@ export const vendorService = {
     let created = vendor;
     if (isSupabaseConfigured()) {
       try {
+        const orgId = await getCurrentOrgId();
         const { data, error } = await supabase
           .from("vendors")
           .insert({
             id: vendor.id,
-            org_id: null, // Set to null to avoid FK constraint
+            org_id: orgId,
             name: vendor.name,
             category: vendor.category,
             rating: vendor.rating || 5,
@@ -729,12 +776,13 @@ export const documentService = {
           return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
         };
         const docId = isValidUUID(document.id) ? document.id : generateUUID();
+        const orgId = await getCurrentOrgId();
 
         const { data, error } = await supabase
           .from("documents")
           .insert({
             id: docId,
-            org_id: null,
+            org_id: orgId,
             project_id: document.project_id || null,
             name: document.name,
             type: document.type,
@@ -870,13 +918,23 @@ export const activityService = {
           return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
         };
         const actId = isValidUUID(activity.id) ? activity.id : generateUUID();
+        const orgId = await getCurrentOrgId();
+
+        // Also get the authenticated user's ID for user_id field
+        let userId = activity.user_id || null;
+        if (!userId) {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) userId = user.id;
+          } catch (_) { /* ignore */ }
+        }
 
         const { data, error } = await supabase
           .from("activities")
           .insert({
             id: actId,
-            org_id: null,
-            user_id: activity.user_id || null,
+            org_id: orgId,
+            user_id: userId,
             user_name: activity.user_name,
             action: activity.action,
             entity_type: activity.entity_type || null,
@@ -956,12 +1014,13 @@ export const timelineService = {
           return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
         };
         const eventId = isValidUUID(event.id) ? event.id : generateUUID();
+        const orgId = await getCurrentOrgId();
 
         const { data, error } = await supabase
           .from("timeline_events")
           .insert({
             id: eventId,
-            org_id: null,
+            org_id: orgId,
             project_id: event.project_id || null,
             title: event.title,
             description: event.description || null,
