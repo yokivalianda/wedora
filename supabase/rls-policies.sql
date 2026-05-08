@@ -14,7 +14,8 @@
 --   get_user_org_id() mengembalikan NULL.
 -- - Dalam PostgreSQL, NULL = NULL menghasilkan NULL (bukan TRUE),
 --   jadi kita perlu menangani kasus ini secara eksplisit dengan IS NULL.
--- - User tanpa org bisa melihat data yang juga memiliki org_id IS NULL (data mereka sendiri).
+-- - User tanpa org hanya bisa melihat data yang juga memiliki org_id IS NULL.
+--   Ini mencegah kebocoran data antar user yang belum onboarding.
 -- ==========================================
 
 -- ==========================================
@@ -29,7 +30,6 @@ $$ LANGUAGE sql SECURITY DEFINER STABLE;
 -- ==========================================
 -- 1. ORGANIZATIONS — Kebijakan akses organisasi
 -- ==========================================
--- User hanya bisa melihat & mengelola organisasi miliknya sendiri
 
 CREATE POLICY "organizations_select_policy" ON organizations
     FOR SELECT USING (
@@ -38,7 +38,6 @@ CREATE POLICY "organizations_select_policy" ON organizations
 
 CREATE POLICY "organizations_insert_policy" ON organizations
     FOR INSERT WITH CHECK (
-        -- Allow insert saat onboarding (user baru membuat org)
         true
     );
 
@@ -55,19 +54,15 @@ CREATE POLICY "organizations_delete_policy" ON organizations
 -- ==========================================
 -- 2. USERS — Kebijakan akses data pengguna
 -- ==========================================
--- User bisa melihat semua anggota di org yang sama
--- User hanya bisa update/delete profil sendiri
 
 CREATE POLICY "users_select_policy" ON users
     FOR SELECT USING (
-        org_id = public.get_user_org_id()
-        OR id = auth.uid()
-        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
+        id = auth.uid()
+        OR org_id = public.get_user_org_id()
     );
 
 CREATE POLICY "users_insert_policy" ON users
     FOR INSERT WITH CHECK (
-        -- Allow insert: user baru (onboarding) atau org_id sesuai
         id = auth.uid()
         OR org_id = public.get_user_org_id()
         OR org_id IS NULL
@@ -118,7 +113,7 @@ CREATE POLICY "wedding_projects_delete_policy" ON wedding_projects
 CREATE POLICY "tasks_select_policy" ON tasks
     FOR SELECT USING (
         org_id = public.get_user_org_id()
-        OR org_id IS NULL
+        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
     );
 
 CREATE POLICY "tasks_insert_policy" ON tasks
@@ -130,13 +125,13 @@ CREATE POLICY "tasks_insert_policy" ON tasks
 CREATE POLICY "tasks_update_policy" ON tasks
     FOR UPDATE USING (
         org_id = public.get_user_org_id()
-        OR org_id IS NULL
+        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
     );
 
 CREATE POLICY "tasks_delete_policy" ON tasks
     FOR DELETE USING (
         org_id = public.get_user_org_id()
-        OR org_id IS NULL
+        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
     );
 
 -- ==========================================
@@ -146,7 +141,7 @@ CREATE POLICY "tasks_delete_policy" ON tasks
 CREATE POLICY "payments_select_policy" ON payments
     FOR SELECT USING (
         org_id = public.get_user_org_id()
-        OR org_id IS NULL
+        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
     );
 
 CREATE POLICY "payments_insert_policy" ON payments
@@ -158,13 +153,13 @@ CREATE POLICY "payments_insert_policy" ON payments
 CREATE POLICY "payments_update_policy" ON payments
     FOR UPDATE USING (
         org_id = public.get_user_org_id()
-        OR org_id IS NULL
+        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
     );
 
 CREATE POLICY "payments_delete_policy" ON payments
     FOR DELETE USING (
         org_id = public.get_user_org_id()
-        OR org_id IS NULL
+        OR (public.get_user_org_id() IS NULL AND org_id IS NULL)
     );
 
 -- ==========================================
@@ -282,7 +277,6 @@ CREATE POLICY "timeline_events_delete_policy" ON timeline_events
 -- ==========================================
 -- 10. NOTIFICATIONS — Kebijakan akses notifikasi
 -- ==========================================
--- Notifikasi berbasis user_id langsung (bukan org_id)
 
 CREATE POLICY "notifications_select_policy" ON notifications
     FOR SELECT USING (
