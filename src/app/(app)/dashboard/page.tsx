@@ -6,6 +6,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import {
   mockActivities
 } from "@/lib/mock-data";
+import { isDemoAccount } from "@/lib/demo";
 import {
   formatCurrency,
   formatDate,
@@ -88,7 +89,7 @@ export default function DashboardPage() {
     .filter((t) => t.status !== "done")
     .slice(0, 4);
 
-  const activities = mockActivities;
+  const activities = isDemoAccount() ? mockActivities : [];
 
   return (
     <AppLayout>
