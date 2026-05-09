@@ -1190,7 +1190,11 @@ export const userService = {
         console.warn("[userService.getAll] Failed to fetch from Supabase:", err);
       }
     }
-    // Fallback: mock data for demo/local mode
-    return mockUsers as User[];
+    // Fallback: mock data only for demo accounts
+    if (isDemoAccount()) return mockUsers as User[];
+    // Supabase not configured (localStorage mode) → return mockUsers so assigned_staff in local/mock projects resolves correctly
+    if (!isSupabaseConfigured()) return mockUsers as User[];
+    // Supabase configured but org not yet set → empty (user has real account, don't show mock coordinators)
+    return [];
   },
 };

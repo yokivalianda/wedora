@@ -259,7 +259,7 @@ export default function ProjectsView() {
                   <div className="border-t border-[#ECE7E1] bg-[#FAF7F2]/50 px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs text-[#666666]">
                       <Users className="h-4 w-4 text-[#666666]" />
-                      <span>{project.assigned_staff.length} Koordinator</span>
+                      <span>{staffList.length > 0 ? `${staffList.length} Koordinator` : "Belum ada koordinator"}</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <button
