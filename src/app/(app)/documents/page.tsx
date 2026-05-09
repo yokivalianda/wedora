@@ -369,12 +369,13 @@ export default function DocumentsPage() {
                 key={doc.id}
                 className="flex items-center justify-between p-5 rounded-2xl border border-[#ECE7E1] bg-white shadow-soft hover:shadow-card transition-all text-left"
               >
-                <div className="flex items-center gap-4 min-w-0">
+                {/* Info kiri */}
+                <div className="flex items-center gap-4 min-w-0 flex-1">
                   <div className="rounded-xl bg-[#FAF7F2] p-3 border border-[#ECE7E1] text-[#D4AF37] shrink-0">
                     {getDocIcon(doc.type)}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-[#1E1E1E] truncate max-w-[200px] sm:max-w-xs">
+                    <p className="text-sm font-semibold text-[#1E1E1E] truncate max-w-[160px] sm:max-w-xs">
                       {doc.name}
                     </p>
                     {doc.project_id && projectMap[doc.project_id] && (
@@ -393,6 +394,9 @@ export default function DocumentsPage() {
                       </p>
                     )}
                   </div>
+                </div>
+                {/* Aksi kanan */}
+                <div className="flex items-center gap-2 shrink-0 ml-3">
                   <button
                     onClick={() => handleDelete(doc.id)}
                     className="text-[#666666] hover:text-rose-500 transition-colors"

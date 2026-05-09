@@ -144,8 +144,8 @@ export default function SettingsPage() {
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#666666]">Rencana Langganan (Plan)</label>
                   <div className="mt-1.5 flex items-center justify-between rounded-2xl border border-[#ECE7E1] bg-[#FAF7F2]/30 px-4 py-3">
                     <div>
-                      <p className="text-sm font-semibold text-[#1E1E1E]">Plan Professional</p>
-                      <p className="text-[11px] text-[#666666] mt-0.5">Rp 299.000/bulan • Diperbarui otomatis Juni 1, 2026</p>
+                      <p className="text-sm font-semibold text-[#1E1E1E]">Plan Aktif</p>
+                      <p className="text-[11px] text-[#666666] mt-0.5">Informasi langganan dapat dilihat di portal billing Anda.</p>
                     </div>
                     <span className="rounded-full bg-[#EFD6D2] px-3 py-1 text-[10px] font-semibold text-[#1E1E1E] uppercase">Aktif</span>
                   </div>
@@ -166,7 +166,10 @@ export default function SettingsPage() {
                   <h2 className="font-heading text-xl font-bold text-[#1E1E1E]">Akses Anggota Tim</h2>
                 </div>
                 <button 
-                  onClick={() => alert("Fitur undang tim akan hadir di update berikutnya.")}
+                  onClick={() => {
+                    // Fitur undang tim membutuhkan konfigurasi email/invite
+                    window.open("mailto:?subject=Undangan%20Bergabung%20ke%20Wedora&body=Halo%2C%20saya%20mengundang%20Anda%20bergabung%20ke%20workspace%20Wedding%20Organizer%20kami%20di%20Wedora.", "_blank");
+                  }}
                   className="inline-flex items-center gap-1 rounded-full bg-[#1E1E1E] px-3 py-1.5 text-[11px] font-semibold text-white cursor-pointer"
                 >
                   <Plus className="h-3.5 w-3.5" /> Undang Tim

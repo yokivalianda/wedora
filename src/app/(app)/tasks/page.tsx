@@ -3,9 +3,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/layout/AppLayout";
-import { mockUsers } from "@/lib/mock-data";
-import { Task, WeddingProject } from "@/types";
-import { taskService, projectService, activityService } from "@/lib/services";
+import { Task, WeddingProject, User as UserType } from "@/types";
+import { taskService, projectService, activityService, userService } from "@/lib/services";
 import { 
   TASK_PRIORITY_LABELS, 
   TASK_PRIORITY_COLORS, 
@@ -28,13 +27,15 @@ export default function TasksPage() {
 
   // Form State
   const [projects, setProjects] = useState<WeddingProject[]>([]);
+  const [orgUsers, setOrgUsers] = useState<UserType[]>([]);
 
   useEffect(() => {
     projectService.getAll().then(setProjects);
+    userService.getAll().then(setOrgUsers);
   }, []);
 
   const [title, setTitle] = useState("");
-  const [assigneeName, setAssigneeName] = useState("Lina Permata");
+  const [assigneeName, setAssigneeName] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [projectId, setProjectId] = useState("");
@@ -79,8 +80,7 @@ export default function TasksPage() {
       org_id: null,
       project_id: projectId || undefined,
       title: title,
-      assignee_id: mockUsers.find(u => u.full_name === assigneeName)?.id || "user-003",
-      assignee_name: assigneeName,
+      assignee_name: assigneeName || undefined,
       due_date: dueDate || undefined,
       status: "todo",
       priority: priority,
@@ -103,13 +103,12 @@ export default function TasksPage() {
       }).catch(console.warn);
     }).catch((err) => {
       console.error("Gagal menambahkan tugas:", err);
-      // Still add to local state so user sees it
       setTasks((prev) => [newTask, ...prev]);
     });
 
     // Reset Form
     setTitle("");
-    setAssigneeName("Lina Permata");
+    setAssigneeName("");
     setDueDate("");
     setPriority("medium");
     setProjectId("");
@@ -257,7 +256,7 @@ export default function TasksPage() {
         )}
       </div>
 
-      {/* Premium Tambah Tugas Modal */}
+      {/* Tambah Tugas Modal */}
       <AnimatePresence>
         {isAddModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -314,7 +313,8 @@ export default function TasksPage() {
                       onChange={(e) => setAssigneeName(e.target.value)}
                       className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none text-[#1E1E1E]"
                     >
-                      {mockUsers.map(u => (
+                      <option value="">— Pilih PIC —</option>
+                      {orgUsers.map(u => (
                         <option key={u.id} value={u.full_name}>{u.full_name} ({u.role})</option>
                       ))}
                     </select>
@@ -373,7 +373,7 @@ export default function TasksPage() {
                     type="submit"
                     className="rounded-full bg-[#1E1E1E] px-5 py-2 text-xs font-semibold text-white hover:scale-[1.01] transition-transform flex items-center gap-1.5 cursor-pointer"
                   >
-                    <span>Tambah Tugas 🌟</span>
+                    Tambah Tugas
                   </button>
                 </div>
               </form>

@@ -149,7 +149,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <a
-                href={`https://api.whatsapp.com/send?phone=6281234567890&text=${encodeURIComponent(
+                href={`https://wa.me/?text=${encodeURIComponent(
                   `Halo Kak ${nudgeProject.bride_name}, ini tim asisten dari ${user?.orgName || "Amara"} WO. Kami ingin mengonfirmasi terkait jadwal pembayaran pelunasan berikutnya sebesar ${nudgeAmount} yang akan segera jatuh tempo. Kakak bisa memeriksa rincian invoice dan status persiapan pernikahan di portal klien Wedora. Terima kasih banyak, Kak!`
                 )}`}
                 target="_blank"

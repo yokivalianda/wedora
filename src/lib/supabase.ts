@@ -67,7 +67,7 @@ export function formatFileSize(bytes: number): string {
 
 /**
  * Upload a file to Supabase Storage bucket "documents".
- * Validates max file size (10 MB).
+ * Validates max file size (5 MB).
  * Returns public URL, storage path, and formatted size.
  * Throws an error with a user-friendly Indonesian message on failure.
  */

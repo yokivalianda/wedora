@@ -173,6 +173,23 @@ export default function BudgetPage() {
         {/* Transactions Table Section */}
         <div className="space-y-4">
           <h2 className="font-heading text-xl font-semibold text-[#1E1E1E] text-left">Riwayat Transaksi</h2>
+
+          {payments.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[#ECE7E1] bg-white p-12 text-center space-y-3 shadow-soft">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#FAF7F2] text-[#D4AF37] border border-[#ECE7E1]">
+                <Receipt className="h-6 w-6" />
+              </div>
+              <h4 className="text-sm font-semibold text-[#1E1E1E]">Belum Ada Transaksi</h4>
+              <p className="text-xs text-[#666666] max-w-xs mx-auto">Mulai catat DP, pelunasan, atau pengeluaran pertama dari klien Anda.</p>
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-[#1E1E1E] px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:scale-[1.01] transition-transform"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Catat Transaksi Pertama</span>
+              </button>
+            </div>
+          ) : (
           <div className="overflow-hidden rounded-2xl border border-[#ECE7E1] bg-white shadow-soft">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-[#ECE7E1]">
@@ -251,6 +268,7 @@ export default function BudgetPage() {
               </table>
             </div>
           </div>
+          )}
         </div>
       </div>
 
