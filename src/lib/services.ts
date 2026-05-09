@@ -813,6 +813,16 @@ export const documentService = {
       try {
         const orgId = await getCurrentOrgId();
 
+        // Resolve uploader identity from Supabase auth session
+        // Priority: authenticated user's email > fallback to passed uploaded_by
+        let uploadedBy = document.uploaded_by || null;
+        try {
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (authUser) {
+            uploadedBy = authUser.email ?? authUser.id;
+          }
+        } catch (_) { /* ignore, use fallback */ }
+
         const { data, error } = await supabase
           .from("documents")
           .insert({
@@ -824,7 +834,7 @@ export const documentService = {
             category: document.category || null,
             size: document.size || null,
             url: document.url || "#",
-            uploaded_by: document.uploaded_by || null,
+            uploaded_by: uploadedBy,
             created_at: document.created_at || new Date().toISOString()
           })
           .select()

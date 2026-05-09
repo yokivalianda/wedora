@@ -321,6 +321,11 @@ export default function DocumentsPage() {
                       {doc.size ? ` • ${doc.size}` : ""}
                       {` • ${formatDateShort(doc.created_at)}`}
                     </p>
+                    {doc.uploaded_by && (
+                      <p className="text-[10px] text-[#999] mt-0.5">
+                        Diunggah oleh: <span className="font-medium text-[#666666]">{doc.uploaded_by}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
