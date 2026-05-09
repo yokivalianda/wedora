@@ -58,6 +58,7 @@ export default function DocumentsPage() {
   const [activeFilter, setActiveFilter] = useState<
     "all" | "Kontrak" | "Moodboard & Foto" | "Invoice"
   >("all");
+  const [activeProjectFilter, setActiveProjectFilter] = useState<string>("all");
 
   useEffect(() => {
     documentService.getAll().then((data) => setDocuments(data));
@@ -216,9 +217,19 @@ export default function DocumentsPage() {
     });
   }
 
+  // ── Lookup: project id → name ──
+  const projectMap = Object.fromEntries(
+    projects.map((p) => [p.id, `${p.bride_name} & ${p.groom_name}`])
+  );
+
   // ── Filtered list ──
   const filteredDocs = documents
     .filter((doc) => activeFilter === "all" || doc.category === activeFilter)
+    .filter((doc) => {
+      if (activeProjectFilter === "all") return true;
+      if (activeProjectFilter === "none") return !doc.project_id;
+      return doc.project_id === activeProjectFilter;
+    })
     .filter((doc) =>
       doc.name.toLowerCase().includes(search.toLowerCase())
     );
@@ -257,34 +268,76 @@ export default function DocumentsPage() {
         </div>
 
         {/* Filter & Search */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#ECE7E1] pb-4">
-          <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
-            {filters.map((filter) => (
+        <div className="flex flex-col gap-3 border-b border-[#ECE7E1] pb-4">
+          {/* Row 1: Kategori + Search */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {filters.map((filter) => (
+                <button
+                  key={filter.value}
+                  onClick={() => setActiveFilter(filter.value)}
+                  className={`rounded-full px-4 py-2 text-xs font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
+                    activeFilter === filter.value
+                      ? "bg-[#1E1E1E] text-white shadow-sm"
+                      : "text-[#666666] hover:bg-white hover:text-[#1E1E1E]"
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+            <div className="relative w-full lg:max-w-xs shrink-0">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[#666666]">
+                <Search className="h-4 w-4" />
+              </div>
+              <input
+                type="search"
+                placeholder="Cari nama berkas..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="block w-full rounded-full border border-[#ECE7E1] bg-white py-2 pl-10 pr-4 text-xs text-[#1E1E1E] placeholder-[#666666]/50 focus:border-[#D4AF37] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Filter per Proyek */}
+          {projects.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
               <button
-                key={filter.value}
-                onClick={() => setActiveFilter(filter.value)}
-                className={`rounded-full px-4 py-2 text-xs font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
-                  activeFilter === filter.value
-                    ? "bg-[#1E1E1E] text-white shadow-sm"
-                    : "text-[#666666] hover:bg-white hover:text-[#1E1E1E]"
+                onClick={() => setActiveProjectFilter("all")}
+                className={`rounded-full px-3.5 py-1.5 text-[11px] font-semibold transition-all whitespace-nowrap cursor-pointer border ${
+                  activeProjectFilter === "all"
+                    ? "bg-[#D4AF37] text-white border-[#D4AF37] shadow-sm"
+                    : "text-[#666666] border-[#ECE7E1] hover:border-[#D4AF37] hover:text-[#1E1E1E]"
                 }`}
               >
-                {filter.label}
+                Semua Proyek
               </button>
-            ))}
-          </div>
-          <div className="relative w-full lg:max-w-xs">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[#666666]">
-              <Search className="h-4 w-4" />
+              <button
+                onClick={() => setActiveProjectFilter("none")}
+                className={`rounded-full px-3.5 py-1.5 text-[11px] font-semibold transition-all whitespace-nowrap cursor-pointer border ${
+                  activeProjectFilter === "none"
+                    ? "bg-[#D4AF37] text-white border-[#D4AF37] shadow-sm"
+                    : "text-[#666666] border-[#ECE7E1] hover:border-[#D4AF37] hover:text-[#1E1E1E]"
+                }`}
+              >
+                Tanpa Proyek
+              </button>
+              {projects.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setActiveProjectFilter(p.id)}
+                  className={`rounded-full px-3.5 py-1.5 text-[11px] font-semibold transition-all whitespace-nowrap cursor-pointer border ${
+                    activeProjectFilter === p.id
+                      ? "bg-[#D4AF37] text-white border-[#D4AF37] shadow-sm"
+                      : "text-[#666666] border-[#ECE7E1] hover:border-[#D4AF37] hover:text-[#1E1E1E]"
+                  }`}
+                >
+                  {p.bride_name} & {p.groom_name}
+                </button>
+              ))}
             </div>
-            <input
-              type="search"
-              placeholder="Cari nama berkas..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="block w-full rounded-full border border-[#ECE7E1] bg-white py-2 pl-10 pr-4 text-xs text-[#1E1E1E] placeholder-[#666666]/50 focus:border-[#D4AF37] focus:outline-none"
-            />
-          </div>
+          )}
         </div>
 
         {/* Documents List */}
@@ -324,6 +377,11 @@ export default function DocumentsPage() {
                     <p className="text-sm font-semibold text-[#1E1E1E] truncate max-w-[200px] sm:max-w-xs">
                       {doc.name}
                     </p>
+                    {doc.project_id && projectMap[doc.project_id] && (
+                      <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-[#FAF7F2] border border-[#ECE7E1] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#D4AF37]">
+                        💍 {projectMap[doc.project_id]}
+                      </span>
+                    )}
                     <p className="text-[11px] text-[#666666] mt-0.5">
                       {doc.category || doc.type}
                       {doc.size ? ` • ${doc.size}` : ""}
@@ -335,8 +393,6 @@ export default function DocumentsPage() {
                       </p>
                     )}
                   </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => handleDelete(doc.id)}
                     className="text-[#666666] hover:text-rose-500 transition-colors"

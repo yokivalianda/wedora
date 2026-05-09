@@ -6,11 +6,12 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/layout/AppLayout";
 import { mockUsers } from "@/lib/mock-data";
-import { projectService, taskService, paymentService, timelineService } from "@/lib/services";
-import { WeddingProject, Task, Payment, TimelineEvent } from "@/types";
+import { projectService, taskService, paymentService, timelineService, documentService } from "@/lib/services";
+import { WeddingProject, Task, Payment, TimelineEvent, Document, DocumentType } from "@/types";
 import { 
   formatCurrency, 
-  formatDate, 
+  formatDate,
+  formatDateShort,
   PROJECT_STATUS_LABELS, 
   PROJECT_STATUS_COLORS,
   TASK_PRIORITY_COLORS,
@@ -34,7 +35,11 @@ import {
   UserCheck,
   Trash2,
   Pencil,
-  X
+  X,
+  FileText,
+  Image as ImageIcon,
+  ArrowUpRight,
+  FolderOpen,
 } from "lucide-react";
 
 export default function ProjectDetailPage() {
@@ -45,10 +50,11 @@ export default function ProjectDetailPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Active sub-tab
-  const [activeTab, setActiveTab] = useState<"overview" | "rundown" | "keuangan" | "checklist">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "rundown" | "keuangan" | "checklist" | "dokumen">("overview");
 
   // Edit modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -68,12 +74,14 @@ export default function ProjectDetailPage() {
       projectService.getById(id),
       taskService.getAll(),
       paymentService.getAll(),
-      timelineService.getAll(id)
-    ]).then(([projData, taskData, payData, timelineData]) => {
+      timelineService.getAll(id),
+      documentService.getAll(),
+    ]).then(([projData, taskData, payData, timelineData, docData]) => {
       setProject(projData);
       setTasks(taskData.filter((t) => t.project_id === id));
       setPayments(payData.filter((p) => p.project_id === id));
       setTimelineEvents(timelineData);
+      setDocuments(docData.filter((d) => d.project_id === id));
       setLoading(false);
     });
   }, [id]);
@@ -262,7 +270,7 @@ export default function ProjectDetailPage() {
 
           {/* Core Tab Switcher */}
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-[#ECE7E1]/50">
-            {(["overview", "rundown", "keuangan", "checklist"] as const).map((tab) => (
+            {(["overview", "rundown", "keuangan", "checklist", "dokumen"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -276,6 +284,7 @@ export default function ProjectDetailPage() {
                 {tab === "rundown" && "Rundown Acara"}
                 {tab === "keuangan" && "Keuangan & Kas"}
                 {tab === "checklist" && `Checklist (${tasks.filter(t => t.status === "done").length}/${tasks.length})`}
+                {tab === "dokumen" && `Dokumen (${documents.length})`}
               </button>
             ))}
           </div>
@@ -550,6 +559,88 @@ export default function ProjectDetailPage() {
                         );
                       })}
                     </div>
+                  </div>
+                )}
+
+                {/* 5. DOKUMEN TAB */}
+                {activeTab === "dokumen" && (
+                  <div className="space-y-5 pt-4">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <h3 className="font-heading text-lg font-bold text-[#1E1E1E]">
+                        Berkas & Dokumen Proyek
+                      </h3>
+                      <Link
+                        href="/documents"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[#ECE7E1] bg-white px-4 py-2 text-xs font-semibold text-[#1E1E1E] hover:bg-[#FAF7F2] transition-colors"
+                      >
+                        <FolderOpen className="h-3.5 w-3.5 text-[#D4AF37]" />
+                        Kelola Semua Dokumen
+                      </Link>
+                    </div>
+
+                    {documents.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-[#ECE7E1] bg-white p-10 text-center space-y-3">
+                        <div className="flex justify-center">
+                          <div className="rounded-xl bg-[#FAF7F2] p-4 border border-[#ECE7E1] text-[#D4AF37]">
+                            <FolderOpen className="h-7 w-7" />
+                          </div>
+                        </div>
+                        <p className="text-sm font-medium text-[#666666]">Belum ada dokumen untuk proyek ini.</p>
+                        <p className="text-xs text-[#666666]/70">Unggah kontrak, moodboard, atau invoice dari halaman Dokumen.</p>
+                        <Link
+                          href="/documents"
+                          className="inline-flex items-center gap-1.5 rounded-full bg-[#1E1E1E] px-4 py-2 text-xs font-semibold text-white hover:scale-[1.01] transition-transform"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Unggah Dokumen
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {documents.map((doc) => {
+                          const isImage = doc.type === "foto" || doc.type === "moodboard";
+                          return (
+                            <div
+                              key={doc.id}
+                              className="flex items-center justify-between p-4 rounded-xl border border-[#ECE7E1] bg-white shadow-soft hover:shadow-card transition-all"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="rounded-lg bg-[#FAF7F2] p-2.5 border border-[#ECE7E1] text-[#D4AF37] shrink-0">
+                                  {isImage
+                                    ? <ImageIcon className="h-4 w-4" />
+                                    : <FileText className="h-4 w-4" />
+                                  }
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold text-[#1E1E1E] truncate max-w-[180px] sm:max-w-xs">
+                                    {doc.name}
+                                  </p>
+                                  <p className="text-[10px] text-[#666666] mt-0.5">
+                                    {doc.category || doc.type}
+                                    {doc.size ? ` • ${doc.size}` : ""}
+                                    {` • ${formatDateShort(doc.created_at)}`}
+                                  </p>
+                                  {doc.uploaded_by && (
+                                    <p className="text-[10px] text-[#999] mt-0.5">
+                                      Oleh: <span className="font-medium text-[#666666]">{doc.uploaded_by}</span>
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <a
+                                href={doc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FAF7F2] border border-[#ECE7E1] text-[#666666] hover:text-[#1E1E1E] hover:border-[#1E1E1E] transition-colors"
+                                title="Buka Berkas"
+                              >
+                                <ArrowUpRight className="h-3.5 w-3.5" />
+                              </a>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </motion.div>
