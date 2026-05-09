@@ -17,18 +17,15 @@ if (typeof window !== "undefined" && !isSupabaseConfigured()) {
 // ============================================================
 // ORG ID HELPER — Retrieves the authenticated user's org_id
 // ============================================================
-let cachedOrgId: string | null | undefined = undefined; // undefined = not fetched yet
 
+// Always fetch fresh org_id — no caching to prevent cross-user data leakage
+// when multiple users login on the same browser session
 async function getCurrentOrgId(): Promise<string | null> {
   if (!isSupabaseConfigured()) return null;
-  if (cachedOrgId !== undefined) return cachedOrgId;
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      cachedOrgId = null;
-      return null;
-    }
+    if (!user) return null;
 
     const { data, error } = await supabase
       .from("users")
@@ -36,25 +33,15 @@ async function getCurrentOrgId(): Promise<string | null> {
       .eq("id", user.id)
       .single();
 
-    if (!error && data) {
-      cachedOrgId = data.org_id;
+    if (!error && data?.org_id) {
       return data.org_id;
     }
 
-    cachedOrgId = null;
     return null;
   } catch (err) {
     console.warn("[getCurrentOrgId] Failed:", err);
-    cachedOrgId = null;
     return null;
   }
-}
-
-// Reset cached org_id when auth state changes (e.g., logout/login)
-if (typeof window !== "undefined" && isSupabaseConfigured()) {
-  supabase.auth.onAuthStateChange(() => {
-    cachedOrgId = undefined;
-  });
 }
 
 // ============================================================
@@ -98,6 +85,10 @@ const mergeWithLocal = <T extends { id: string }>(
   const localData = getLocalStorage<T[]>(localKey, fallback);
   return localData;
 };
+
+// When Supabase is configured, skip localStorage writes for data tables
+// to prevent cross-user data leakage via shared browser storage
+const shouldWriteLocalStorage = () => !isSupabaseConfigured() && !isDemoAccount();
 
 // ============================================================
 // 1. SERVICES FOR WEDDING PROJECTS
@@ -204,7 +195,7 @@ export const projectService = {
     } else {
       console.log("[projectService.create] Supabase not configured, skipping");
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const projects = getLocalStorage<WeddingProject[]>("wedora_projects", []);
       const updated = [created, ...projects.filter((p) => p.id !== created.id)];
       setLocalStorage("wedora_projects", updated);
@@ -245,7 +236,7 @@ export const projectService = {
         throw new Error(err?.message || "Failed to update project in Supabase");
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const projects = getLocalStorage<WeddingProject[]>("wedora_projects", []);
       const updated = projects.map((p) => {
         if (p.id === id) {
@@ -273,7 +264,7 @@ export const projectService = {
         console.warn("Failed to delete project from Supabase:", err);
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const projects = getLocalStorage<WeddingProject[]>("wedora_projects", []);
       const updated = projects.filter((p) => p.id !== id);
       setLocalStorage("wedora_projects", updated);
@@ -356,7 +347,7 @@ export const taskService = {
     } else {
       console.log("[taskService.create] Supabase not configured, skipping");
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const tasks = getLocalStorage<Task[]>("wedora_tasks", []);
       const updated = [created, ...tasks.filter((t) => t.id !== created.id)];
       setLocalStorage("wedora_tasks", updated);
@@ -394,7 +385,7 @@ export const taskService = {
     }
 
     // Always sync localStorage fallback (except for demo accounts)
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const tasks = getLocalStorage<Task[]>("wedora_tasks", []);
       const updated = tasks.map((t) => {
         if (t.id === id) {
@@ -448,7 +439,7 @@ export const taskService = {
         throw new Error(err?.message || "Failed to update task in Supabase");
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const tasks = getLocalStorage<Task[]>("wedora_tasks", []);
       const updated = tasks.map((t) => {
         if (t.id === id) {
@@ -475,7 +466,7 @@ export const taskService = {
         console.warn("Failed to delete task from Supabase:", err);
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const tasks = getLocalStorage<Task[]>("wedora_tasks", []);
       const updated = tasks.filter((t) => t.id !== id);
       setLocalStorage("wedora_tasks", updated);
@@ -558,7 +549,7 @@ export const paymentService = {
     } else {
       console.log("[paymentService.create] Supabase not configured, skipping");
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const payments = getLocalStorage<Payment[]>("wedora_payments", []);
       const updated = [created, ...payments.filter((p) => p.id !== created.id)];
       setLocalStorage("wedora_payments", updated);
@@ -595,7 +586,7 @@ export const paymentService = {
         throw new Error(err?.message || "Failed to update payment in Supabase");
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const payments = getLocalStorage<Payment[]>("wedora_payments", []);
       const updated = payments.map((p) => {
         if (p.id === id) {
@@ -622,7 +613,7 @@ export const paymentService = {
         console.warn("Failed to delete payment from Supabase:", err);
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const payments = getLocalStorage<Payment[]>("wedora_payments", []);
       const updated = payments.filter((p) => p.id !== id);
       setLocalStorage("wedora_payments", updated);
@@ -678,7 +669,7 @@ export const vendorService = {
         throw new Error(err?.message || "Failed to create vendor in Supabase");
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const vendors = getLocalStorage<Vendor[]>("wedora_vendors", []);
       const updated = [created, ...vendors.filter((v) => v.id !== created.id)];
       setLocalStorage("wedora_vendors", updated);
@@ -712,7 +703,7 @@ export const vendorService = {
         throw new Error(err?.message || "Failed to update vendor in Supabase");
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const vendors = getLocalStorage<Vendor[]>("wedora_vendors", []);
       const updated = vendors.map((v) => {
         if (v.id === id) {
@@ -739,7 +730,7 @@ export const vendorService = {
         console.warn("Failed to delete vendor from Supabase:", err);
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const vendors = getLocalStorage<Vendor[]>("wedora_vendors", []);
       const updated = vendors.filter((v) => v.id !== id);
       setLocalStorage("wedora_vendors", updated);
@@ -818,7 +809,7 @@ export const documentService = {
         throw new Error(err?.message || "Failed to create document in Supabase");
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const documents = getLocalStorage<Document[]>("wedora_documents", []);
       const updated = [created, ...documents.filter((d) => d.id !== created.id)];
       setLocalStorage("wedora_documents", updated);
@@ -854,7 +845,7 @@ export const documentService = {
         throw new Error(err?.message || "Failed to update document in Supabase");
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const documents = getLocalStorage<Document[]>("wedora_documents", []);
       const updated = documents.map((d) => {
         if (d.id === id) {
@@ -881,7 +872,7 @@ export const documentService = {
         console.warn("Failed to delete document from Supabase:", err);
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const documents = getLocalStorage<Document[]>("wedora_documents", []);
       const updated = documents.filter((d) => d.id !== id);
       setLocalStorage("wedora_documents", updated);
@@ -968,7 +959,7 @@ export const activityService = {
         throw new Error(err?.message || "Failed to create activity in Supabase");
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const activities = getLocalStorage<Activity[]>("wedora_activities", []);
       const updated = [created, ...activities.filter((a) => a.id !== created.id)];
       setLocalStorage("wedora_activities", updated);
@@ -1056,7 +1047,7 @@ export const timelineService = {
         throw new Error(err?.message || "Failed to create timeline event in Supabase");
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const events = getLocalStorage<TimelineEvent[]>("wedora_timeline", []);
       const updated = [created, ...events.filter((e) => e.id !== created.id)];
       setLocalStorage("wedora_timeline", updated);
@@ -1092,7 +1083,7 @@ export const timelineService = {
         throw new Error(err?.message || "Failed to update timeline event in Supabase");
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const events = getLocalStorage<TimelineEvent[]>("wedora_timeline", []);
       const updated = events.map((e) => {
         if (e.id === id) {
@@ -1119,7 +1110,7 @@ export const timelineService = {
         console.warn("Failed to delete timeline event from Supabase:", err);
       }
     }
-    if (!isDemoAccount()) {
+    if (shouldWriteLocalStorage()) {
       const events = getLocalStorage<TimelineEvent[]>("wedora_timeline", []);
       const updated = events.filter((e) => e.id !== id);
       setLocalStorage("wedora_timeline", updated);

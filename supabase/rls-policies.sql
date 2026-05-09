@@ -1,17 +1,13 @@
 -- ==========================================
 -- Wedora SaaS — Row Level Security (RLS) Policies
 -- ==========================================
--- Prasyarat:
--- - Supabase Auth aktif, auth.uid() mengembalikan UUID user yang login
--- - Tabel `users` menghubungkan auth user ke organisasi via org_id
--- - Semua tabel data memiliki kolom org_id (kecuali notifications yang pakai user_id)
+-- PERHATIAN: File ini adalah referensi. Untuk APPLY ke Supabase,
+-- jalankan file: supabase/fix-rls-migration.sql di SQL Editor Supabase.
 --
--- PENTING tentang isolasi data:
--- - User HANYA bisa melihat data milik org_id mereka sendiri
--- - Jika user belum onboarding (org_id NULL), mereka TIDAK bisa melihat data
---   milik user lain yang juga org_id NULL
--- - Kita gunakan created_by pattern implisit: data tanpa org hanya bisa diakses
---   oleh user yang memilikinya (ditangani di level aplikasi via localStorage)
+-- Aturan isolasi:
+-- - Setiap akun HANYA bisa melihat data milik org mereka sendiri
+-- - org_id WAJIB terisi (NOT NULL) — data tanpa org tidak bisa diakses
+-- - Tidak ada pengecualian untuk org_id IS NULL
 -- ==========================================
 
 -- ==========================================
