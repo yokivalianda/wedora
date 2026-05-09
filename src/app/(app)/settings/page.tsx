@@ -23,7 +23,9 @@ const ROLE_LABELS: Record<string, string> = {
   staff: "Staff / Koordinator",
 };
 
-const STORAGE_KEY = "wedora_team_members";
+// Key per-user agar data tim tidak bercampur antar akun
+const getStorageKey = (email: string) =>
+  `wedora_team_members_${email.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
 
 export default function SettingsPage() {
   const [activeSubTab, setActiveSubTab] = useState<"profil" | "organisasi" | "tim">("profil");
@@ -42,44 +44,35 @@ export default function SettingsPage() {
   const [inviteError, setInviteError] = useState("");
 
   useEffect(() => {
-    if (user) {
-      setName(user.name || "");
-      setEmail(user.email || "");
-      setOrgName(user.orgName || "");
+    if (!user) return;
 
-      // Load anggota tim dari localStorage
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const saved: TeamMember[] = raw ? JSON.parse(raw) : [];
+    setName(user.name || "");
+    setEmail(user.email || "");
+    setOrgName(user.orgName || "");
 
-      // Pastikan owner selalu ada di daftar
-      const ownerExists = saved.some((m) => m.email.toLowerCase() === user.email.toLowerCase());
-      if (!ownerExists) {
-        const ownerEntry: TeamMember = {
-          id: "owner-" + user.email,
-          name: user.name,
-          email: user.email,
-          role: "owner",
-          status: "aktif",
-          joinedAt: new Date().toISOString(),
-        };
-        const withOwner = [ownerEntry, ...saved];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(withOwner));
-        setMembers(withOwner);
-      } else {
-        // Demo: inject contoh anggota jika akun demo dan belum ada tambahan
-        if (isDemoAccount() && saved.length <= 1) {
-          const demoExtras: TeamMember[] = [
-            { id: "demo-2", name: "Budi Santoso", email: "budi@amara-wo.com", role: "admin", status: "aktif", joinedAt: new Date().toISOString() },
-            { id: "demo-3", name: "Lina Permata", email: "lina@amara-wo.com", role: "staff", status: "aktif", joinedAt: new Date().toISOString() },
-          ];
-          const withDemo = [...saved, ...demoExtras];
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(withDemo));
-          setMembers(withDemo);
-        } else {
-          setMembers(saved);
-        }
-      }
-    }
+    // Key unik per akun — cegah data bercampur antar user
+    const storageKey = getStorageKey(user.email);
+    const raw = localStorage.getItem(storageKey);
+    const saved: TeamMember[] = raw ? JSON.parse(raw) : [];
+
+    // Owner entry selalu mengacu ke akun yang sedang login
+    const ownerEntry: TeamMember = {
+      id: "owner-" + user.email,
+      name: user.name,
+      email: user.email,
+      role: "owner",
+      status: "aktif",
+      joinedAt: new Date().toISOString(),
+    };
+
+    // Filter: hapus entry lama yang punya role owner (jaga-jaga dari data lama)
+    // lalu taruh owner yang benar di posisi pertama
+    const withoutStaleOwners = saved.filter(
+      (m) => m.role !== "owner"
+    );
+    const fresh = [ownerEntry, ...withoutStaleOwners];
+    localStorage.setItem(storageKey, JSON.stringify(fresh));
+    setMembers(fresh);
   }, [user]);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -92,6 +85,7 @@ export default function SettingsPage() {
   // ── Undang anggota baru ───────────────────────────────────────
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
     setInviteError("");
 
     if (!inviteEmail.trim()) { setInviteError("Email wajib diisi."); return; }
@@ -109,7 +103,7 @@ export default function SettingsPage() {
 
     const updated = [...members, newMember];
     setMembers(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(getStorageKey(user.email), JSON.stringify(updated));
 
     setInviteSent(true);
     setTimeout(() => {
@@ -122,9 +116,10 @@ export default function SettingsPage() {
 
   // ── Hapus anggota ─────────────────────────────────────────────
   const handleRemoveMember = (id: string) => {
+    if (!user) return;
     const updated = members.filter((m) => m.id !== id);
     setMembers(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(getStorageKey(user.email), JSON.stringify(updated));
   };
 
   // ── Format tanggal trial ──────────────────────────────────────
