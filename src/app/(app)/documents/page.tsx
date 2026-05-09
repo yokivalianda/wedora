@@ -166,7 +166,8 @@ export default function DocumentsPage() {
         const result = await uploadFileToStorage(selectedFile, "documents");
         finalUrl = result.url;
         finalSize = result.size;
-        setUploadProgress("success");
+        // NOTE: jangan panggil setUploadProgress("success") di sini
+        // agar state form (projectId, dll) tidak ter-re-render sebelum newDoc dibuat
       } catch (err: any) {
         setUploadProgress("error");
         setUploadError(err?.message ?? "Upload gagal. Coba lagi.");
@@ -178,13 +179,19 @@ export default function DocumentsPage() {
       finalSize = size || undefined;
     }
 
+    // Snapshot semua nilai form SEBELUM reset
+    const docProjectId = projectId || undefined;
+    const docName = name;
+    const docType_ = docType;
+    const docCategory = category;
+
     const newDoc: Document = {
       id: crypto.randomUUID ? crypto.randomUUID() : `doc-${Date.now()}`,
       org_id: "org-001",
-      project_id: projectId || undefined,
-      name,
-      type: docType,
-      category,
+      project_id: docProjectId,
+      name: docName,
+      type: docType_,
+      category: docCategory,
       url: finalUrl,
       size: finalSize,
       created_at: new Date().toISOString(),
@@ -193,6 +200,7 @@ export default function DocumentsPage() {
     try {
       const saved = await documentService.create(newDoc);
       setDocuments((prev) => [saved, ...prev]);
+      setUploadProgress("success");
       resetForm();
       setIsAddModalOpen(false);
     } catch (err: any) {
