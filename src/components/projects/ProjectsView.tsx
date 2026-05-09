@@ -1,11 +1,11 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/layout/AppLayout";
-import { WeddingProject } from "@/types";
-import { projectService, activityService } from "@/lib/services";
+import { WeddingProject, User } from "@/types";
+import { projectService, activityService, userService } from "@/lib/services";
 import {
   formatCurrency,
   formatDate,
@@ -13,17 +13,19 @@ import {
   PROJECT_STATUS_COLORS,
   calculateProgress
 } from "@/lib/utils";
-import { Calendar, Users, Plus, ChevronRight, MapPin, Search, X, Sparkles, DollarSign, ListTodo, Trash2 } from "lucide-react";
+import { Calendar, Users, Plus, ChevronRight, MapPin, Search, X, Sparkles, Trash2, UserCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 
 export default function ProjectsView() {
   const { user } = useAuth();
   const [projects, setProjects] = useState<WeddingProject[]>([]);
+  const [orgUsers, setOrgUsers] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState<"semua" | "inquiry" | "planning" | "dp_paid" | "in_progress" | "completed">("semua");
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     projectService.getAll().then((data) => setProjects(data));
+    userService.getAll().then((data) => setOrgUsers(data));
   }, []);
 
   // Modal State
@@ -37,6 +39,7 @@ export default function ProjectsView() {
   const [guestCount, setGuestCount] = useState("");
   const [budgetTotal, setBudgetTotal] = useState("");
   const [notes, setNotes] = useState("");
+  const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -49,6 +52,12 @@ export default function ProjectsView() {
       (p.venue && p.venue.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesTab && matchesSearch;
   });
+
+  const handleToggleStaff = (userId: string) => {
+    setSelectedStaff((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +79,7 @@ export default function ProjectsView() {
       budget_used: 0,
       status: "planning",
       notes: notes || "Tema modern elegant, nuansa premium.",
-      assigned_staff: ["user-002", "user-003"],
+      assigned_staff: selectedStaff,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -99,6 +108,7 @@ export default function ProjectsView() {
       setGuestCount("");
       setBudgetTotal("");
       setNotes("");
+      setSelectedStaff([]);
       setIsAddModalOpen(false);
     } catch (err: any) {
       setSubmitError(err?.message || "Gagal menyimpan proyek. Silakan coba lagi.");
@@ -183,6 +193,7 @@ export default function ProjectsView() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProjects.map((project) => {
               const progress = calculateProgress(project.budget_used, project.budget_total);
+              const staffList = orgUsers.filter(u => project.assigned_staff.includes(u.id));
               return (
                 <div
                   key={project.id}
@@ -230,13 +241,25 @@ export default function ProjectsView() {
                         <span>{formatCurrency(project.budget_total)}</span>
                       </div>
                     </div>
+
+                    {/* Koordinator Lapangan */}
+                    {staffList.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                        {staffList.map((s) => (
+                          <span key={s.id} className="inline-flex items-center gap-1 rounded-full bg-[#FAF7F2] border border-[#ECE7E1] px-2 py-0.5 text-[10px] text-[#666666] font-medium">
+                            <UserCheck className="h-3 w-3 text-[#D4AF37]" />
+                            {s.full_name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Bottom Action Footer */}
                   <div className="border-t border-[#ECE7E1] bg-[#FAF7F2]/50 px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs text-[#666666]">
                       <Users className="h-4 w-4 text-[#666666]" />
-                      <span>{project.assigned_staff.length} Kordinator</span>
+                      <span>{project.assigned_staff.length} Koordinator</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <button
@@ -278,10 +301,10 @@ export default function ProjectsView() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-[#ECE7E1] bg-white shadow-elevated z-10"
+              className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-[#ECE7E1] bg-white shadow-elevated z-10 max-h-[90vh] overflow-y-auto"
             >
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-[#ECE7E1] px-6 py-4 text-left">
+              <div className="flex items-center justify-between border-b border-[#ECE7E1] px-6 py-4 text-left sticky top-0 bg-white z-10">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-[#D4AF37]" />
                   <h3 className="font-heading text-lg font-bold text-[#1E1E1E]">Mulai Proyek Pernikahan</h3>
@@ -371,6 +394,46 @@ export default function ProjectsView() {
                     />
                   </div>
                 </div>
+
+                {/* Pilih Koordinator Lapangan */}
+                {orgUsers.length > 0 && (
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666] mb-1.5">
+                      Koordinator Lapangan (Tim WO)
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {orgUsers.map((u) => {
+                        const isSelected = selectedStaff.includes(u.id);
+                        return (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() => handleToggleStaff(u.id)}
+                            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all ${
+                              isSelected
+                                ? "border-[#D4AF37] bg-[#FAF7F2] text-[#1E1E1E]"
+                                : "border-[#ECE7E1] bg-white text-[#666666] hover:border-[#D4AF37]/50"
+                            }`}
+                          >
+                            <div className={`h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                              isSelected ? "bg-[#D4AF37] text-white" : "bg-[#FAF7F2] text-[#D4AF37] border border-[#ECE7E1]"
+                            }`}>
+                              {u.full_name[0]}
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold leading-tight">{u.full_name}</p>
+                              <p className="text-[9px] capitalize text-[#999]">{u.role}</p>
+                            </div>
+                            {isSelected && <UserCheck className="h-3.5 w-3.5 text-[#D4AF37] ml-auto shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedStaff.length === 0 && (
+                      <p className="text-[10px] text-[#999] mt-1.5">Belum ada koordinator dipilih.</p>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Catatan / Konsep Acara</label>

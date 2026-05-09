@@ -6,39 +6,21 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/layout/AppLayout";
 import { projectService, taskService, paymentService, timelineService, documentService, userService } from "@/lib/services";
-import { WeddingProject, Task, Payment, TimelineEvent, Document, DocumentType, User } from "@/types";
-import { 
-  formatCurrency, 
+import { WeddingProject, Task, Payment, TimelineEvent, Document, User } from "@/types";
+import {
+  formatCurrency,
   formatDate,
   formatDateShort,
-  PROJECT_STATUS_LABELS, 
+  PROJECT_STATUS_LABELS,
   PROJECT_STATUS_COLORS,
   TASK_PRIORITY_COLORS,
   TASK_PRIORITY_LABELS,
   calculateProgress
 } from "@/lib/utils";
-import { 
-  ArrowLeft,
-  Calendar,
-  MapPin,
-  Users,
-  DollarSign,
-  Clock,
-  Plus,
-  ChevronRight,
-  CheckSquare,
-  Square,
-  Sparkles,
-  Info,
-  Receipt,
-  UserCheck,
-  Trash2,
-  Pencil,
-  X,
-  FileText,
-  Image as ImageIcon,
-  ArrowUpRight,
-  FolderOpen,
+import {
+  ArrowLeft, Calendar, MapPin, Users, Clock, Plus, ChevronRight,
+  CheckSquare, Square, Sparkles, Info, Receipt, UserCheck, Trash2, Pencil,
+  X, FileText, Image as ImageIcon, ArrowUpRight, FolderOpen,
 } from "lucide-react";
 
 export default function ProjectDetailPage() {
@@ -53,10 +35,9 @@ export default function ProjectDetailPage() {
   const [orgUsers, setOrgUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Active sub-tab
   const [activeTab, setActiveTab] = useState<"overview" | "rundown" | "keuangan" | "checklist" | "dokumen">("overview");
 
-  // Edit modal state
+  // ── EDIT PROJECT MODAL ──────────────────────────────────────────
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editBrideName, setEditBrideName] = useState("");
   const [editGroomName, setEditGroomName] = useState("");
@@ -66,6 +47,36 @@ export default function ProjectDetailPage() {
   const [editBudgetTotal, setEditBudgetTotal] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editStatus, setEditStatus] = useState<string>("planning");
+  const [editAssignedStaff, setEditAssignedStaff] = useState<string[]>([]);
+
+  // ── TAMBAH JADWAL (RUNDOWN) MODAL ───────────────────────────────
+  const [isRundownModalOpen, setIsRundownModalOpen] = useState(false);
+  const [rundownTitle, setRundownTitle] = useState("");
+  const [rundownTime, setRundownTime] = useState("");
+  const [rundownLocation, setRundownLocation] = useState("");
+  const [rundownPic, setRundownPic] = useState("");
+  const [rundownDesc, setRundownDesc] = useState("");
+  const [rundownCategory, setRundownCategory] = useState<"ceremony" | "reception" | "preparation" | "vendor" | "lainnya">("lainnya");
+  const [isRundownSubmitting, setIsRundownSubmitting] = useState(false);
+
+  // ── TAMBAH TUGAS (CHECKLIST) MODAL ──────────────────────────────
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskAssignee, setTaskAssignee] = useState("");
+  const [taskDueDate, setTaskDueDate] = useState("");
+  const [taskPriority, setTaskPriority] = useState<"low" | "medium" | "high">("medium");
+  const [taskDesc, setTaskDesc] = useState("");
+  const [isTaskSubmitting, setIsTaskSubmitting] = useState(false);
+
+  // ── CATAT KAS (KEUANGAN) MODAL ──────────────────────────────────
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentType, setPaymentType] = useState<"dp" | "pelunasan" | "vendor" | "pengeluaran">("dp");
+  const [paymentStatus, setPaymentStatus] = useState<"menunggu" | "dibayar">("menunggu");
+  const [paymentDate, setPaymentDate] = useState("");
+  const [paymentDueDate, setPaymentDueDate] = useState("");
+  const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -121,18 +132,24 @@ export default function ProjectDetailPage() {
     );
   }
 
-  // Handle checking/unchecking tasks with persistence
+  // ── TOGGLE TASK ─────────────────────────────────────────────────
   const handleToggleTask = (taskId: string) => {
     taskService.toggle(taskId).then((updatedTask) => {
       if (updatedTask) {
-        setTasks((prev) =>
-          prev.map((task) => (task.id === taskId ? updatedTask : task))
-        );
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTask : t)));
       }
     });
   };
 
-  // Handle deleting timeline events
+  // ── DELETE TASK ─────────────────────────────────────────────────
+  const handleDeleteTask = (taskId: string) => {
+    if (!confirm("Hapus tugas ini?")) return;
+    taskService.delete(taskId).then(() => {
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    });
+  };
+
+  // ── DELETE TIMELINE ─────────────────────────────────────────────
   const handleDeleteTimeline = (eventId: string) => {
     if (!confirm("Apakah Anda yakin ingin menghapus jadwal ini?")) return;
     timelineService.delete(eventId).then(() => {
@@ -140,7 +157,15 @@ export default function ProjectDetailPage() {
     });
   };
 
-  // Handle opening edit modal
+  // ── DELETE PAYMENT ──────────────────────────────────────────────
+  const handleDeletePayment = (payId: string) => {
+    if (!confirm("Hapus catatan kas ini?")) return;
+    paymentService.delete(payId).then(() => {
+      setPayments((prev) => prev.filter((p) => p.id !== payId));
+    });
+  };
+
+  // ── OPEN EDIT MODAL ─────────────────────────────────────────────
   const handleOpenEditModal = () => {
     if (!project) return;
     setEditBrideName(project.bride_name);
@@ -151,14 +176,21 @@ export default function ProjectDetailPage() {
     setEditBudgetTotal(String(project.budget_total));
     setEditNotes(project.notes || "");
     setEditStatus(project.status);
+    setEditAssignedStaff(project.assigned_staff || []);
     setIsEditModalOpen(true);
   };
 
-  // Handle edit submit
+  const handleToggleEditStaff = (userId: string) => {
+    setEditAssignedStaff((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
+
+  // ── SUBMIT EDIT ─────────────────────────────────────────────────
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!project) return;
-    const updatedFields = {
+    projectService.update(project.id, {
       bride_name: editBrideName,
       groom_name: editGroomName,
       wedding_date: editWeddingDate,
@@ -166,42 +198,123 @@ export default function ProjectDetailPage() {
       guest_count: editGuestCount ? Number(editGuestCount) : undefined,
       budget_total: Number(editBudgetTotal),
       notes: editNotes,
-      status: editStatus as any
-    };
-    projectService.update(project.id, updatedFields).then((updated) => {
+      status: editStatus as any,
+      assigned_staff: editAssignedStaff,
+    }).then((updated) => {
       if (updated) setProject(updated);
       setIsEditModalOpen(false);
     });
   };
 
-  // Scoped Payments
+  // ── SUBMIT RUNDOWN ──────────────────────────────────────────────
+  const handleRundownSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rundownTitle || !rundownTime) return;
+    setIsRundownSubmitting(true);
+    try {
+      const newEvent: TimelineEvent = {
+        id: `tl-gen-${Date.now()}`,
+        project_id: id,
+        title: rundownTitle,
+        description: rundownDesc || undefined,
+        time: rundownTime,
+        location: rundownLocation || undefined,
+        pic: rundownPic || undefined,
+        category: rundownCategory,
+        created_at: new Date().toISOString(),
+      };
+      const saved = await timelineService.create(newEvent);
+      setTimelineEvents((prev) => [...prev, saved].sort((a, b) => a.time.localeCompare(b.time)));
+      setRundownTitle(""); setRundownTime(""); setRundownLocation("");
+      setRundownPic(""); setRundownDesc(""); setRundownCategory("lainnya");
+      setIsRundownModalOpen(false);
+    } finally {
+      setIsRundownSubmitting(false);
+    }
+  };
+
+  // ── SUBMIT TASK ─────────────────────────────────────────────────
+  const handleTaskSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taskTitle) return;
+    setIsTaskSubmitting(true);
+    try {
+      const newTask: Task = {
+        id: `task-gen-${Date.now()}`,
+        org_id: null,
+        project_id: id,
+        title: taskTitle,
+        description: taskDesc || undefined,
+        assignee_name: taskAssignee || undefined,
+        due_date: taskDueDate || undefined,
+        status: "todo",
+        priority: taskPriority,
+        created_at: new Date().toISOString(),
+      };
+      const saved = await taskService.create(newTask);
+      setTasks((prev) => [saved, ...prev]);
+      setTaskTitle(""); setTaskAssignee(""); setTaskDueDate("");
+      setTaskPriority("medium"); setTaskDesc("");
+      setIsTaskModalOpen(false);
+    } finally {
+      setIsTaskSubmitting(false);
+    }
+  };
+
+  // ── SUBMIT PAYMENT ──────────────────────────────────────────────
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paymentAmount) return;
+    setIsPaymentSubmitting(true);
+    try {
+      const newPayment: Payment = {
+        id: `pay-gen-${Date.now()}`,
+        org_id: null,
+        project_id: id,
+        type: paymentType,
+        amount: Number(paymentAmount),
+        status: paymentStatus,
+        payment_date: paymentDate || undefined,
+        due_date: paymentDueDate || undefined,
+        notes: paymentNotes || undefined,
+        created_at: new Date().toISOString(),
+      };
+      const saved = await paymentService.create(newPayment);
+      setPayments((prev) => [saved, ...prev]);
+      setPaymentNotes(""); setPaymentAmount(""); setPaymentType("dp");
+      setPaymentStatus("menunggu"); setPaymentDate(""); setPaymentDueDate("");
+      setIsPaymentModalOpen(false);
+    } finally {
+      setIsPaymentSubmitting(false);
+    }
+  };
+
+  // ── COMPUTED ────────────────────────────────────────────────────
+  const assignedStaffList = orgUsers.filter((u) => project.assigned_staff.includes(u.id));
   const finalPayments = payments;
-
-  // Financial calculations
-  const totalPaid = finalPayments
-    .filter((p) => p.status === "dibayar")
-    .reduce((sum, p) => sum + p.amount, 0);
-  const totalPending = finalPayments
-    .filter((p) => p.status === "menunggu" || p.status === "terlambat")
-    .reduce((sum, p) => sum + p.amount, 0);
-
-  // Scoped Timeline
-  const finalTimeline = timelineEvents.sort((a, b) => a.time.localeCompare(b.time));
-
-  // Budget progress
+  const totalPaid = finalPayments.filter((p) => p.status === "dibayar").reduce((s, p) => s + p.amount, 0);
+  const totalPending = finalPayments.filter((p) => p.status === "menunggu" || p.status === "terlambat").reduce((s, p) => s + p.amount, 0);
+  const finalTimeline = [...timelineEvents].sort((a, b) => a.time.localeCompare(b.time));
   const progress = calculateProgress(project.budget_used, project.budget_total);
 
-  // Assigned Staff Members Info — from dynamic org users
-  const assignedStaffList = orgUsers.filter(u => project.assigned_staff.includes(u.id));
+  // WhatsApp: ambil nomor dari koordinator pertama jika ada, fallback ke default
+  const firstCoordinatorPhone = assignedStaffList.find((u) => (u as any).phone)
+    ? (assignedStaffList.find((u) => (u as any).phone) as any).phone?.replace(/\D/g, "").replace(/^0/, "62")
+    : null;
+  const waPhone = firstCoordinatorPhone || "6281234567890";
+  const waMessage = encodeURIComponent(
+    `Halo Kak ${project.bride_name} & Kak ${project.groom_name}, ini asisten dari tim Amara WO. Persiapan pernikahan Kakak terus kami update di sistem, saat ini progres budget terpakai baru ${progress}%. Terima kasih banyak!`
+  );
+
 
   return (
     <AppLayout>
       <div className="space-y-8 print:hidden">
-        
-        {/* Navigation Breadcrumb & Back */}
+
+        {/* Breadcrumb */}
         <div className="flex items-center gap-4 text-left">
-          <Link 
-            href="/projects" 
+          <Link
+            href="/projects"
             className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white border border-[#ECE7E1] text-[#666666] hover:text-[#1E1E1E] transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -216,11 +329,11 @@ export default function ProjectDetailPage() {
           </div>
         </div>
 
-        {/* Premium Profile Header Card */}
+        {/* Header Card */}
         <div className="rounded-2xl border border-[#ECE7E1] bg-white p-6 sm:p-8 text-left shadow-soft space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-[#ECE7E1] pb-6">
             <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${PROJECT_STATUS_COLORS[project.status]}`}>
                   {PROJECT_STATUS_LABELS[project.status]}
                 </span>
@@ -234,21 +347,11 @@ export default function ProjectDetailPage() {
                 Pernikahan {project.bride_name} & {project.groom_name}
               </h1>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-[#666666] pt-1">
-                <span className="flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4 text-[#D4AF37]" />
-                  <span>{formatDate(project.wedding_date)}</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <MapPin className="h-4 w-4 text-[#D4AF37]" />
-                  <span>{project.venue}</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Users className="h-4 w-4 text-[#D4AF37]" />
-                  <span>{project.guest_count || 300} Tamu Undangan</span>
-                </span>
+                <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4 text-[#D4AF37]" />{formatDate(project.wedding_date)}</span>
+                <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-[#D4AF37]" />{project.venue}</span>
+                <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-[#D4AF37]" />{project.guest_count || 300} Tamu Undangan</span>
               </div>
             </div>
-
             <div className="flex gap-2 shrink-0">
               <button
                 onClick={handleOpenEditModal}
@@ -258,9 +361,7 @@ export default function ProjectDetailPage() {
                 <span>Edit</span>
               </button>
               <a
-                href={`https://api.whatsapp.com/send?phone=6281234567890&text=${encodeURIComponent(
-                  `Halo Kak ${project.bride_name} & Kak ${project.groom_name}, ini asisten dari tim Amara WO. Persiapan pernikahan Kakak terus kami update di sistem, saat ini progres budget terpakai baru ${progress}%. Kakak bisa cek rundown dan kelengkapan tugas di link portal klien berikut ya. Terima kasih banyak!`
-                )}`}
+                href={`https://api.whatsapp.com/send?phone=${waPhone}&text=${waMessage}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition-colors"
@@ -270,16 +371,14 @@ export default function ProjectDetailPage() {
             </div>
           </div>
 
-          {/* Core Tab Switcher */}
+          {/* Tabs */}
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-[#ECE7E1]/50">
             {(["overview", "rundown", "keuangan", "checklist", "dokumen"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all whitespace-nowrap ${
-                  activeTab === tab 
-                    ? "border-[#D4AF37] text-[#1E1E1E]" 
-                    : "border-transparent text-[#666666] hover:text-[#1E1E1E]"
+                  activeTab === tab ? "border-[#D4AF37] text-[#1E1E1E]" : "border-transparent text-[#666666] hover:text-[#1E1E1E]"
                 }`}
               >
                 {tab === "overview" && "Informasi Umum"}
@@ -291,7 +390,7 @@ export default function ProjectDetailPage() {
             ))}
           </div>
 
-          {/* Sub-tab Content Area */}
+          {/* Tab Content */}
           <div>
             <AnimatePresence mode="wait">
               <motion.div
@@ -301,10 +400,11 @@ export default function ProjectDetailPage() {
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.15 }}
               >
-                {/* 1. OVERVIEW TAB */}
+
+
+                {/* ── OVERVIEW TAB ── */}
                 {activeTab === "overview" && (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-4">
-                    {/* Left Column (Main Specs) */}
                     <div className="lg:col-span-2 space-y-6">
                       <div className="rounded-2xl border border-[#ECE7E1] bg-[#FAF7F2]/30 p-5 space-y-4">
                         <div className="flex items-center gap-2 text-[#D4AF37]">
@@ -317,16 +417,15 @@ export default function ProjectDetailPage() {
                         <div className="border-t border-[#ECE7E1] pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                           <div>
                             <span className="text-xs text-[#666666] font-semibold uppercase">Alamat Lengkap Venue</span>
-                            <p className="mt-1 text-[#1E1E1E] font-medium">{project.venue_address || "Gedung Utama, Jakarta"}</p>
+                            <p className="mt-1 text-[#1E1E1E] font-medium">{project.venue_address || "—"}</p>
                           </div>
                           <div>
-                            <span className="text-xs text-[#666666] font-semibold uppercase">Batas Waktu Pelunasan WO</span>
+                            <span className="text-xs text-[#666666] font-semibold uppercase">Tanggal Pernikahan</span>
                             <p className="mt-1 text-[#1E1E1E] font-medium">{formatDate(project.wedding_date)}</p>
                           </div>
                         </div>
                       </div>
 
-                      {/* Budget consumption stat */}
                       <div className="rounded-2xl border border-[#ECE7E1] p-5 space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-bold text-[#1E1E1E] uppercase tracking-wider">Pemakaian Anggaran Kontrak</span>
@@ -337,18 +436,24 @@ export default function ProjectDetailPage() {
                         </div>
                         <div className="flex justify-between text-xs text-[#666666] font-medium pt-0.5">
                           <span>Terpakai: <strong>{formatCurrency(project.budget_used)}</strong></span>
-                          <span>Total Kontrak: <strong>{formatCurrency(project.budget_total)}</strong></span>
+                          <span>Total: <strong>{formatCurrency(project.budget_total)}</strong></span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Right Column (Team coordinators) */}
+                    {/* Koordinator Lapangan — DINAMIS */}
                     <div className="space-y-4">
                       <h4 className="text-xs font-bold text-[#1E1E1E] uppercase tracking-wider">Koordinator Lapangan (WO)</h4>
                       <div className="space-y-3">
                         {assignedStaffList.length === 0 ? (
-                          <div className="rounded-xl border border-[#ECE7E1] p-4 text-center">
-                            <p className="text-xs text-[#666666]">Belum ada staf koordinator ditunjuk.</p>
+                          <div className="rounded-xl border border-dashed border-[#ECE7E1] p-5 text-center space-y-2">
+                            <p className="text-xs text-[#666666]">Belum ada koordinator ditunjuk.</p>
+                            <button
+                              onClick={handleOpenEditModal}
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-[#D4AF37] hover:underline"
+                            >
+                              <Plus className="h-3 w-3" /> Tambah koordinator
+                            </button>
                           </div>
                         ) : (
                           assignedStaffList.map((staff) => (
@@ -360,217 +465,277 @@ export default function ProjectDetailPage() {
                                 <div className="text-left">
                                   <p className="text-xs font-bold text-[#1E1E1E]">{staff.full_name}</p>
                                   <p className="text-[10px] text-[#666666] capitalize">{staff.role}</p>
+                                  {(staff as any).phone && (
+                                    <p className="text-[10px] text-[#999]">{(staff as any).phone}</p>
+                                  )}
                                 </div>
                               </div>
                               <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[9px] font-bold text-emerald-700 border border-emerald-100 flex items-center gap-1">
-                                <UserCheck className="h-3 w-3" /> Online
+                                <UserCheck className="h-3 w-3" /> Aktif
                               </span>
                             </div>
                           ))
                         )}
                       </div>
+                      {assignedStaffList.length > 0 && (
+                        <button
+                          onClick={handleOpenEditModal}
+                          className="w-full rounded-xl border border-dashed border-[#ECE7E1] py-2 text-[10px] font-bold text-[#666666] hover:border-[#D4AF37] hover:text-[#D4AF37] transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Pencil className="h-3 w-3" /> Ubah Koordinator
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
 
-                {/* 2. RUNDOWN TAB */}
+
+                {/* ── RUNDOWN TAB ── */}
                 {activeTab === "rundown" && (
                   <div className="space-y-6 pt-4 max-w-3xl">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       <h3 className="font-heading text-lg font-bold text-[#1E1E1E]">Susunan Acara (Rundown) Pernikahan</h3>
                       <div className="flex items-center gap-2">
-                        <button 
+                        <button
                           onClick={() => window.print()}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-[#ECE7E1] bg-white px-3.5 py-1.5 text-[10px] font-bold text-[#1E1E1E] uppercase hover:bg-[#FAF7F2] transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-[#ECE7E1] bg-white px-3.5 py-1.5 text-[10px] font-bold text-[#1E1E1E] uppercase hover:bg-[#FAF7F2] transition-colors"
                         >
-                          <Receipt className="h-3.5 w-3.5 text-[#D4AF37]" /> Ekspor Rundown (PDF)
+                          <Receipt className="h-3.5 w-3.5 text-[#D4AF37]" /> Ekspor PDF
                         </button>
-                        <button className="inline-flex items-center gap-1 rounded-full bg-[#1E1E1E] px-3.5 py-1.5 text-[10px] font-bold text-white uppercase">
+                        <button
+                          onClick={() => setIsRundownModalOpen(true)}
+                          className="inline-flex items-center gap-1 rounded-full bg-[#1E1E1E] px-3.5 py-1.5 text-[10px] font-bold text-white uppercase"
+                        >
                           <Plus className="h-3.5 w-3.5" /> Tambah Jadwal
                         </button>
                       </div>
                     </div>
 
-                    <div className="relative border-l-2 border-[#ECE7E1] ml-4 pl-6 space-y-8 py-2">
-                      {finalTimeline.map((item) => (
-                        <div key={item.id} className="relative">
-                          {/* Circle stamp */}
-                          <span className="absolute -left-10 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-white border-2 border-[#D4AF37] text-[10px] font-bold text-[#1E1E1E] shadow-sm">
-                            {item.time.split(":")[0]}
-                          </span>
-
-                          <div className="rounded-xl border border-[#ECE7E1] bg-white p-5 shadow-soft hover:shadow-card transition-all space-y-2">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#ECE7E1]/50 pb-2">
-                              <h4 className="font-heading text-sm font-bold text-[#1E1E1E]">{item.title}</h4>
-                              <div className="flex items-center gap-2">
-                                <span className="inline-flex items-center gap-1 rounded-full bg-[#FAF7F2] border border-[#ECE7E1] px-2.5 py-0.5 text-[10px] font-semibold text-[#1E1E1E]">
-                                  <Clock className="h-3 w-3 text-[#D4AF37]" />
-                                  <span>{item.time} WIB</span>
-                                </span>
-                                <button
-                                  onClick={() => handleDeleteTimeline(item.id)}
-                                  className="text-[#666666] hover:text-rose-500 transition-colors"
-                                  title="Hapus Jadwal"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
+                    {finalTimeline.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-[#ECE7E1] p-10 text-center space-y-3">
+                        <Clock className="h-8 w-8 text-[#ECE7E1] mx-auto" />
+                        <p className="text-sm text-[#666666]">Belum ada jadwal rundown.</p>
+                        <button
+                          onClick={() => setIsRundownModalOpen(true)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-[#1E1E1E] px-4 py-2 text-xs font-semibold text-white"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Tambah Jadwal Pertama
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="relative border-l-2 border-[#ECE7E1] ml-4 pl-6 space-y-8 py-2">
+                        {finalTimeline.map((item) => (
+                          <div key={item.id} className="relative">
+                            <span className="absolute -left-10 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-white border-2 border-[#D4AF37] text-[10px] font-bold text-[#1E1E1E] shadow-sm">
+                              {item.time.split(":")[0]}
+                            </span>
+                            <div className="rounded-xl border border-[#ECE7E1] bg-white p-5 shadow-soft hover:shadow-card transition-all space-y-2">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#ECE7E1]/50 pb-2">
+                                <h4 className="font-heading text-sm font-bold text-[#1E1E1E]">{item.title}</h4>
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#FAF7F2] border border-[#ECE7E1] px-2.5 py-0.5 text-[10px] font-semibold text-[#1E1E1E]">
+                                    <Clock className="h-3 w-3 text-[#D4AF37]" />{item.time} WIB
+                                  </span>
+                                  <button onClick={() => handleDeleteTimeline(item.id)} className="text-[#666666] hover:text-rose-500 transition-colors" title="Hapus">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                              {item.description && <p className="text-xs text-[#666666] leading-relaxed">{item.description}</p>}
+                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-[#666666] font-medium pt-1">
+                                {item.location && <span>Lokasi: <strong>{item.location}</strong></span>}
+                                {item.pic && <span>PIC: <strong>{item.pic}</strong></span>}
                               </div>
                             </div>
-                            <p className="text-xs text-[#666666] leading-relaxed">{item.description}</p>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-[#666666] font-medium pt-1">
-                              {item.location && <span>Lokasi: <strong>{item.location}</strong></span>}
-                              {item.pic && <span>PIC: <strong>{item.pic}</strong></span>}
-                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* 3. KEUANGAN TAB */}
+
+                {/* ── KEUANGAN TAB ── */}
                 {activeTab === "keuangan" && (
                   <div className="space-y-6 pt-4">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       <h3 className="font-heading text-lg font-bold text-[#1E1E1E]">Buku Kas & Riwayat Pembayaran</h3>
                       <div className="flex items-center gap-2">
-                        <button 
+                        <button
                           onClick={() => window.print()}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-[#ECE7E1] bg-white px-3.5 py-1.5 text-[10px] font-bold text-[#1E1E1E] uppercase hover:bg-[#FAF7F2] transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-[#ECE7E1] bg-white px-3.5 py-1.5 text-[10px] font-bold text-[#1E1E1E] uppercase hover:bg-[#FAF7F2] transition-colors"
                         >
                           <Receipt className="h-3.5 w-3.5 text-[#D4AF37]" /> Cetak Invoice (PDF)
                         </button>
-                        <button className="inline-flex items-center gap-1 rounded-full bg-[#1E1E1E] px-3.5 py-1.5 text-[10px] font-bold text-white uppercase">
+                        <button
+                          onClick={() => setIsPaymentModalOpen(true)}
+                          className="inline-flex items-center gap-1 rounded-full bg-[#1E1E1E] px-3.5 py-1.5 text-[10px] font-bold text-white uppercase"
+                        >
                           <Plus className="h-3.5 w-3.5" /> Catat Kas
                         </button>
                       </div>
                     </div>
 
-                    {/* Stat indicators */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="rounded-xl border border-[#ECE7E1] bg-[#FAF7F2]/20 p-4">
                         <span className="text-[10px] font-bold text-[#666666] uppercase tracking-wider">Total Nilai Kontrak</span>
                         <p className="font-heading text-xl font-bold text-[#1E1E1E] mt-1">{formatCurrency(project.budget_total)}</p>
                       </div>
-                      <div className="rounded-xl border border-[#ECE7E1] bg-emerald-50/20 p-4 border-emerald-100">
+                      <div className="rounded-xl border border-emerald-100 bg-emerald-50/20 p-4">
                         <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Total Dana Masuk (DP)</span>
                         <p className="font-heading text-xl font-bold text-emerald-800 mt-1">{formatCurrency(totalPaid)}</p>
                       </div>
-                      <div className="rounded-xl border border-[#ECE7E1] bg-amber-50/20 p-4 border-amber-100">
+                      <div className="rounded-xl border border-amber-100 bg-amber-50/20 p-4">
                         <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Sisa Piutang Pending</span>
                         <p className="font-heading text-xl font-bold text-amber-800 mt-1">{formatCurrency(totalPending)}</p>
                       </div>
                     </div>
 
-                    {/* Transactions table */}
-                    <div className="overflow-hidden rounded-xl border border-[#ECE7E1] bg-white">
-                      <table className="min-w-full divide-y divide-[#ECE7E1]">
-                        <thead className="bg-[#FAF7F2]/50">
-                          <tr>
-                            <th scope="col" className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-[#1E1E1E]">Jenis</th>
-                            <th scope="col" className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-[#1E1E1E]">Keterangan</th>
-                            <th scope="col" className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-[#1E1E1E]">Tanggal</th>
-                            <th scope="col" className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-[#1E1E1E]">Nominal</th>
-                            <th scope="col" className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-[#1E1E1E]">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#ECE7E1]">
-                          {finalPayments.map((p) => {
-                            const isPaid = p.status === "dibayar";
-                            return (
-                              <tr key={p.id} className="hover:bg-[#FAF7F2]/10 transition-colors">
-                                <td className="whitespace-nowrap px-5 py-3.5 text-left text-xs">
-                                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                                    p.type === "dp" ? "bg-blue-50 text-blue-600" : "bg-[#EFD6D2] text-[#1E1E1E]"
-                                  }`}>
-                                    <Receipt className="h-3 w-3" /> {p.type}
-                                  </span>
-                                </td>
-                                <td className="px-5 py-3.5 text-left text-xs font-semibold text-[#1E1E1E]">
-                                  {p.notes || `Termin Pembayaran #${p.id.split("-")[1]}`}
-                                </td>
-                                <td className="whitespace-nowrap px-5 py-3.5 text-left text-xs text-[#666666]">
-                                  {p.payment_date ? formatDate(p.payment_date) : p.due_date ? `Jatuh Tempo: ${formatDate(p.due_date)}` : "-"}
-                                </td>
-                                <td className="whitespace-nowrap px-5 py-3.5 text-left text-xs font-bold text-[#1E1E1E]">
-                                  {formatCurrency(p.amount)}
-                                </td>
-                                <td className="whitespace-nowrap px-5 py-3.5 text-left text-xs">
-                                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                                    isPaid ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
-                                  }`}>
-                                    {isPaid ? "Dibayar" : "Menunggu"}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                    {finalPayments.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-[#ECE7E1] p-10 text-center space-y-3">
+                        <Receipt className="h-8 w-8 text-[#ECE7E1] mx-auto" />
+                        <p className="text-sm text-[#666666]">Belum ada catatan kas untuk proyek ini.</p>
+                        <button
+                          onClick={() => setIsPaymentModalOpen(true)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-[#1E1E1E] px-4 py-2 text-xs font-semibold text-white"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Catat Transaksi Pertama
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="overflow-hidden rounded-xl border border-[#ECE7E1] bg-white">
+                        <table className="min-w-full divide-y divide-[#ECE7E1]">
+                          <thead className="bg-[#FAF7F2]/50">
+                            <tr>
+                              <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-[#1E1E1E]">Jenis</th>
+                              <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-[#1E1E1E]">Keterangan</th>
+                              <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-[#1E1E1E]">Tanggal</th>
+                              <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-[#1E1E1E]">Nominal</th>
+                              <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-[#1E1E1E]">Status</th>
+                              <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-[#1E1E1E]"></th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#ECE7E1]">
+                            {finalPayments.map((p) => {
+                              const isPaid = p.status === "dibayar";
+                              return (
+                                <tr key={p.id} className="hover:bg-[#FAF7F2]/10 transition-colors">
+                                  <td className="whitespace-nowrap px-5 py-3.5 text-xs">
+                                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                                      p.type === "dp" ? "bg-blue-50 text-blue-600" : p.type === "pengeluaran" ? "bg-rose-50 text-rose-600" : "bg-[#EFD6D2] text-[#1E1E1E]"
+                                    }`}>
+                                      <Receipt className="h-3 w-3" /> {p.type}
+                                    </span>
+                                  </td>
+                                  <td className="px-5 py-3.5 text-xs font-semibold text-[#1E1E1E]">
+                                    {p.notes || `Termin Pembayaran`}
+                                  </td>
+                                  <td className="whitespace-nowrap px-5 py-3.5 text-xs text-[#666666]">
+                                    {p.payment_date ? formatDate(p.payment_date) : p.due_date ? `Jatuh Tempo: ${formatDate(p.due_date)}` : "—"}
+                                  </td>
+                                  <td className="whitespace-nowrap px-5 py-3.5 text-xs font-bold text-[#1E1E1E]">
+                                    {formatCurrency(p.amount)}
+                                  </td>
+                                  <td className="whitespace-nowrap px-5 py-3.5 text-xs">
+                                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                                      isPaid ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                                    }`}>
+                                      {isPaid ? "Dibayar" : "Menunggu"}
+                                    </span>
+                                  </td>
+                                  <td className="px-5 py-3.5 text-xs">
+                                    <button onClick={() => handleDeletePayment(p.id)} className="text-[#666666] hover:text-rose-500 transition-colors">
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* 4. CHECKLIST TAB */}
+
+                {/* ── CHECKLIST TAB ── */}
                 {activeTab === "checklist" && (
                   <div className="space-y-6 pt-4">
                     <div className="flex items-center justify-between">
                       <h3 className="font-heading text-lg font-bold text-[#1E1E1E]">Tugas Persiapan Lapangan</h3>
-                      <button className="inline-flex items-center gap-1 rounded-full bg-[#1E1E1E] px-3.5 py-1.5 text-[10px] font-bold text-white uppercase">
+                      <button
+                        onClick={() => setIsTaskModalOpen(true)}
+                        className="inline-flex items-center gap-1 rounded-full bg-[#1E1E1E] px-3.5 py-1.5 text-[10px] font-bold text-white uppercase"
+                      >
                         <Plus className="h-3.5 w-3.5" /> Tambah Tugas
                       </button>
                     </div>
 
-                    <div className="space-y-3">
-                      {tasks.map((task) => {
-                        const isCompleted = task.status === "done";
-                        return (
-                          <div 
-                            key={task.id} 
-                            className={`flex items-start justify-between gap-4 rounded-xl border border-[#ECE7E1] p-4 text-left transition-all ${
-                              isCompleted ? "bg-[#FAF7F2]/40 border-dashed" : "bg-white shadow-soft hover:shadow-card"
-                            }`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <button 
-                                onClick={() => handleToggleTask(task.id)}
-                                className="mt-0.5 text-[#666666] hover:text-[#D4AF37] transition-colors shrink-0"
-                              >
-                                {isCompleted ? (
-                                  <CheckSquare className="h-5 w-5 text-[#D4AF37]" />
-                                ) : (
-                                  <Square className="h-5 w-5" />
-                                )}
-                              </button>
-
-                              <div className="space-y-0.5">
-                                <p className={`text-xs font-bold ${isCompleted ? "line-through text-[#666666]/60 font-normal" : "text-[#1E1E1E]"}`}>
-                                  {task.title}
-                                </p>
-                                <div className="flex flex-wrap gap-x-4 text-[9px] text-[#666666] font-medium pt-1">
-                                  {task.due_date && <span>Batas: {task.due_date}</span>}
-                                  {task.assignee_name && <span>PIC: {task.assignee_name}</span>}
+                    {tasks.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-[#ECE7E1] p-10 text-center space-y-3">
+                        <CheckSquare className="h-8 w-8 text-[#ECE7E1] mx-auto" />
+                        <p className="text-sm text-[#666666]">Belum ada tugas untuk proyek ini.</p>
+                        <button
+                          onClick={() => setIsTaskModalOpen(true)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-[#1E1E1E] px-4 py-2 text-xs font-semibold text-white"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Tambah Tugas Pertama
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {tasks.map((task) => {
+                          const isCompleted = task.status === "done";
+                          return (
+                            <div
+                              key={task.id}
+                              className={`flex items-start justify-between gap-4 rounded-xl border border-[#ECE7E1] p-4 text-left transition-all ${
+                                isCompleted ? "bg-[#FAF7F2]/40 border-dashed" : "bg-white shadow-soft hover:shadow-card"
+                              }`}
+                            >
+                              <div className="flex items-start gap-3 flex-1 min-w-0">
+                                <button
+                                  onClick={() => handleToggleTask(task.id)}
+                                  className="mt-0.5 text-[#666666] hover:text-[#D4AF37] transition-colors shrink-0"
+                                >
+                                  {isCompleted ? <CheckSquare className="h-5 w-5 text-[#D4AF37]" /> : <Square className="h-5 w-5" />}
+                                </button>
+                                <div className="space-y-0.5 min-w-0">
+                                  <p className={`text-xs font-bold truncate ${isCompleted ? "line-through text-[#666666]/60 font-normal" : "text-[#1E1E1E]"}`}>
+                                    {task.title}
+                                  </p>
+                                  {task.description && (
+                                    <p className="text-[10px] text-[#666666] leading-snug">{task.description}</p>
+                                  )}
+                                  <div className="flex flex-wrap gap-x-4 text-[9px] text-[#666666] font-medium pt-1">
+                                    {task.due_date && <span>Batas: {task.due_date}</span>}
+                                    {task.assignee_name && <span>PIC: {task.assignee_name}</span>}
+                                  </div>
                                 </div>
                               </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className={`rounded-full px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider ${TASK_PRIORITY_COLORS[task.priority]}`}>
+                                  {TASK_PRIORITY_LABELS[task.priority]}
+                                </span>
+                                <button onClick={() => handleDeleteTask(task.id)} className="text-[#666666] hover:text-rose-500 transition-colors">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
                             </div>
-
-                            <span className={`rounded-full px-2 py-0.5 text-[8px] font-bold shrink-0 uppercase tracking-wider ${TASK_PRIORITY_COLORS[task.priority]}`}>
-                              {TASK_PRIORITY_LABELS[task.priority]}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* 5. DOKUMEN TAB */}
+
+                {/* ── DOKUMEN TAB ── */}
                 {activeTab === "dokumen" && (
                   <div className="space-y-5 pt-4">
                     <div className="flex flex-wrap items-center justify-between gap-4">
-                      <h3 className="font-heading text-lg font-bold text-[#1E1E1E]">
-                        Berkas & Dokumen Proyek
-                      </h3>
+                      <h3 className="font-heading text-lg font-bold text-[#1E1E1E]">Berkas & Dokumen Proyek</h3>
                       <Link
                         href="/documents"
                         className="inline-flex items-center gap-1.5 rounded-full border border-[#ECE7E1] bg-white px-4 py-2 text-xs font-semibold text-[#1E1E1E] hover:bg-[#FAF7F2] transition-colors"
@@ -593,8 +758,7 @@ export default function ProjectDetailPage() {
                           href="/documents"
                           className="inline-flex items-center gap-1.5 rounded-full bg-[#1E1E1E] px-4 py-2 text-xs font-semibold text-white hover:scale-[1.01] transition-transform"
                         >
-                          <Plus className="h-3.5 w-3.5" />
-                          Unggah Dokumen
+                          <Plus className="h-3.5 w-3.5" /> Unggah Dokumen
                         </Link>
                       </div>
                     ) : (
@@ -602,30 +766,18 @@ export default function ProjectDetailPage() {
                         {documents.map((doc) => {
                           const isImage = doc.type === "foto" || doc.type === "moodboard";
                           return (
-                            <div
-                              key={doc.id}
-                              className="flex items-center justify-between p-4 rounded-xl border border-[#ECE7E1] bg-white shadow-soft hover:shadow-card transition-all"
-                            >
+                            <div key={doc.id} className="flex items-center justify-between p-4 rounded-xl border border-[#ECE7E1] bg-white shadow-soft hover:shadow-card transition-all">
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="rounded-lg bg-[#FAF7F2] p-2.5 border border-[#ECE7E1] text-[#D4AF37] shrink-0">
-                                  {isImage
-                                    ? <ImageIcon className="h-4 w-4" />
-                                    : <FileText className="h-4 w-4" />
-                                  }
+                                  {isImage ? <ImageIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-xs font-semibold text-[#1E1E1E] truncate max-w-[180px] sm:max-w-xs">
-                                    {doc.name}
-                                  </p>
+                                  <p className="text-xs font-semibold text-[#1E1E1E] truncate max-w-[180px] sm:max-w-xs">{doc.name}</p>
                                   <p className="text-[10px] text-[#666666] mt-0.5">
-                                    {doc.category || doc.type}
-                                    {doc.size ? ` • ${doc.size}` : ""}
-                                    {` • ${formatDateShort(doc.created_at)}`}
+                                    {doc.category || doc.type}{doc.size ? ` • ${doc.size}` : ""} • {formatDateShort(doc.created_at)}
                                   </p>
                                   {doc.uploaded_by && (
-                                    <p className="text-[10px] text-[#999] mt-0.5">
-                                      Oleh: <span className="font-medium text-[#666666]">{doc.uploaded_by}</span>
-                                    </p>
+                                    <p className="text-[10px] text-[#999] mt-0.5">Oleh: <span className="font-medium text-[#666666]">{doc.uploaded_by}</span></p>
                                   )}
                                 </div>
                               </div>
@@ -634,7 +786,6 @@ export default function ProjectDetailPage() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FAF7F2] border border-[#ECE7E1] text-[#666666] hover:text-[#1E1E1E] hover:border-[#1E1E1E] transition-colors"
-                                title="Buka Berkas"
                               >
                                 <ArrowUpRight className="h-3.5 w-3.5" />
                               </a>
@@ -645,243 +796,35 @@ export default function ProjectDetailPage() {
                     )}
                   </div>
                 )}
+
               </motion.div>
             </AnimatePresence>
           </div>
-
         </div>
-
       </div>
 
-      {/* ============================================================ */}
-      {/* PREMIUM PRINTABLE A4 SHEETS (VISIBLE ONLY ON PRINT) */}
-      {/* ============================================================ */}
-      <div className="hidden print:block font-sans text-left text-black p-8 bg-white max-w-4xl mx-auto space-y-10">
-        
-        {/* A. PRINTABLE RUNDOWN SHEET */}
-        {activeTab === "rundown" && (
-          <div className="space-y-6">
-            {/* Invoice-like Header */}
-            <div className="flex justify-between items-start border-b-2 border-black pb-6">
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight uppercase">Wedora Wedding Planner</h1>
-                <p className="text-xs text-gray-500 mt-1">Layanan Perencana Pernikahan Premium & Terpercaya</p>
-              </div>
-              <div className="text-right">
-                <span className="inline-block border border-black px-3 py-1 text-xs font-bold uppercase tracking-wider">
-                  Official Rundown Sheet
-                </span>
-                <p className="text-xs text-gray-500 mt-1">Dicetak pada {new Date().toLocaleDateString("id-ID")}</p>
-              </div>
-            </div>
 
-            {/* Event Specs */}
-            <div className="grid grid-cols-2 gap-4 text-xs border-b border-gray-200 pb-4">
-              <div>
-                <span className="text-gray-500 block uppercase font-bold text-[10px]">Nama Klien</span>
-                <p className="text-sm font-bold text-black">Pernikahan {project.bride_name} & {project.groom_name}</p>
-              </div>
-              <div>
-                <span className="text-gray-500 block uppercase font-bold text-[10px]">Tanggal Pernikahan</span>
-                <p className="text-sm font-bold text-black">{formatDate(project.wedding_date)}</p>
-              </div>
-              <div>
-                <span className="text-gray-500 block uppercase font-bold text-[10px]">Lokasi Acara</span>
-                <p className="text-sm font-bold text-black">{project.venue}</p>
-              </div>
-              <div>
-                <span className="text-gray-500 block uppercase font-bold text-[10px]">Tamu Undangan</span>
-                <p className="text-sm font-bold text-black">{project.guest_count || 300} Tamu</p>
-              </div>
-            </div>
-
-            {/* Rundown Table */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold uppercase tracking-wider border-b border-black pb-1">Susunan Acara Detil</h3>
-              <table className="min-w-full divide-y divide-black text-xs">
-                <thead>
-                  <tr className="border-b border-black font-bold text-left">
-                    <th className="py-2 pr-4 w-20">Waktu</th>
-                    <th className="py-2 px-4 w-48">Agenda/Acara</th>
-                    <th className="py-2 px-4 w-32">Lokasi</th>
-                    <th className="py-2 px-4 w-32">PIC Koordinator</th>
-                    <th className="py-2 pl-4">Deskripsi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {finalTimeline.map((item) => (
-                    <tr key={item.id} className="align-top">
-                      <td className="py-3 pr-4 font-bold">{item.time} WIB</td>
-                      <td className="py-3 px-4 font-bold">{item.title}</td>
-                      <td className="py-3 px-4">{item.location || "-"}</td>
-                      <td className="py-3 px-4 font-medium">{item.pic || "-"}</td>
-                      <td className="py-3 pl-4 text-gray-600 leading-relaxed">{item.description}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Signatures */}
-            <div className="grid grid-cols-2 gap-10 pt-20 text-xs text-center">
-              <div>
-                <p className="text-gray-500">Disiapkan oleh,</p>
-                <div className="h-16"></div>
-                <p className="font-bold border-t border-black pt-1 w-48 mx-auto">Sari Dewi Rahayu</p>
-                <p className="text-gray-500">Wedding Planner Lead</p>
-              </div>
-              <div>
-                <p className="text-gray-500">Pihak Pengantin,</p>
-                <div className="h-16"></div>
-                <p className="font-bold border-t border-black pt-1 w-48 mx-auto">Kak {project.bride_name} / Kak {project.groom_name}</p>
-                <p className="text-gray-500">Mempelai Klien</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* B. PRINTABLE INVOICE SHEET */}
-        {activeTab === "keuangan" && (
-          <div className="space-y-6">
-            {/* Invoice-like Header */}
-            <div className="flex justify-between items-start border-b-2 border-black pb-6">
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight uppercase">Wedora Wedding Planner</h1>
-                <p className="text-xs text-gray-500 mt-1">Layanan Perencana Pernikahan Premium & Terpercaya</p>
-              </div>
-              <div className="text-right">
-                <span className="inline-block border border-black px-3 py-1 text-xs font-bold uppercase tracking-wider">
-                  Official Wedding Invoice
-                </span>
-                <p className="text-xs text-gray-500 mt-1">No: INV/WD/{project.id.split("-")[1]?.toUpperCase() || "001"}</p>
-              </div>
-            </div>
-
-            {/* Invoice Info */}
-            <div className="grid grid-cols-2 gap-4 text-xs border-b border-gray-200 pb-4">
-              <div>
-                <span className="text-gray-500 block uppercase font-bold text-[10px]">Ditagihkan Kepada</span>
-                <p className="text-sm font-bold text-black">Pernikahan {project.bride_name} & {project.groom_name}</p>
-                <p className="text-gray-500 mt-1">Venue: {project.venue}</p>
-              </div>
-              <div className="text-right">
-                <span className="text-gray-500 block uppercase font-bold text-[10px]">Rincian Penagihan</span>
-                <p className="text-sm font-bold text-black">Tanggal: {new Date().toLocaleDateString("id-ID")}</p>
-                <p className="text-sm font-bold text-emerald-700 uppercase mt-1">
-                  Status WO: {totalPending === 0 ? "Lunas" : "Sebagian Dibayar"}
-                </p>
-              </div>
-            </div>
-
-            {/* Line Items Table */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold uppercase tracking-wider border-b border-black pb-1">Rincian Layanan Kontrak</h3>
-              <table className="min-w-full divide-y divide-black text-xs">
-                <thead>
-                  <tr className="border-b border-black font-bold text-left">
-                    <th className="py-2 pr-4">Deskripsi Layanan</th>
-                    <th className="py-2 px-4 text-right">Tanggal Transaksi</th>
-                    <th className="py-2 px-4 text-center">Status</th>
-                    <th className="py-2 pl-4 text-right w-40">Nominal</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {finalPayments.map((p) => (
-                    <tr key={p.id}>
-                      <td className="py-3 pr-4 font-bold">
-                        {p.notes || `${p.type.toUpperCase()} Paket Pernikahan`}
-                      </td>
-                      <td className="py-3 px-4 text-right text-gray-600">
-                        {p.payment_date ? formatDate(p.payment_date) : p.due_date ? `Jatuh Tempo: ${formatDate(p.due_date)}` : "-"}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`inline-block px-2 py-0.5 text-[9px] font-bold uppercase ${
-                          p.status === "dibayar" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                        }`}>
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="py-3 pl-4 text-right font-bold text-black">
-                        {formatCurrency(p.amount)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Total Calculation Grid */}
-            <div className="flex justify-end pt-4">
-              <div className="w-64 space-y-2 text-xs border-t border-black pt-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Total Nilai Kontrak:</span>
-                  <span className="font-bold text-black">{formatCurrency(project.budget_total)}</span>
-                </div>
-                <div className="flex justify-between text-emerald-700">
-                  <span>Total Telah Dibayar (DP):</span>
-                  <span className="font-bold">{formatCurrency(totalPaid)}</span>
-                </div>
-                <div className="flex justify-between border-t border-gray-200 pt-2 text-sm font-bold text-black">
-                  <span>Sisa Pembayaran (Piutang):</span>
-                  <span>{formatCurrency(totalPending)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Instructions */}
-            <div className="rounded-xl border border-gray-200 p-4 bg-gray-50 text-[10px] text-gray-600 leading-relaxed">
-              <p className="font-bold text-black uppercase text-[11px] mb-1">Instruksi Pembayaran & Transfer:</p>
-              <p>Seluruh pelunasan sisa penagihan wajib diserahkan paling lambat H-14 sebelum hari pernikahan klien melalui transfer rekening resmi agensi:</p>
-              <p className="mt-1.5 font-bold text-black">Bank BCA - No. Rekening: 123-456-7890 (a.n. PT Wedora Kreatif Nusantara)</p>
-              <p className="mt-1">Kirim bukti pembayaran sah via WhatsApp ke narahubung koordinator lapangan utama Anda.</p>
-            </div>
-
-            {/* Signatures */}
-            <div className="grid grid-cols-2 gap-10 pt-16 text-xs text-center">
-              <div>
-                <p className="text-gray-500">Hormat Kami (Planner Lead),</p>
-                <div className="h-16"></div>
-                <p className="font-bold border-t border-black pt-1 w-48 mx-auto">Sari Dewi Rahayu</p>
-                <p className="text-gray-500">PT Wedora Kreatif Nusantara</p>
-              </div>
-              <div>
-                <p className="text-gray-500">Disetujui oleh (Klien),</p>
-                <div className="h-16"></div>
-                <p className="font-bold border-t border-black pt-1 w-48 mx-auto">Kak {project.bride_name} & {project.groom_name}</p>
-                <p className="text-gray-500">Mempelai Klien</p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Edit Project Modal */}
+      {/* ══════════════════════════════════════════════════════════ */}
+      {/* MODAL: EDIT PROYEK                                         */}
+      {/* ══════════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {isEditModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsEditModalOpen(false)}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm"
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-[#ECE7E1] bg-white shadow-elevated z-10 max-h-[90vh] overflow-y-auto"
+              initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ duration: 0.2, ease: "easeOut" }}
+              className="relative w-full max-w-lg overflow-y-auto max-h-[90vh] rounded-2xl border border-[#ECE7E1] bg-white shadow-elevated z-10"
             >
-              <div className="flex items-center justify-between border-b border-[#ECE7E1] px-6 py-4 text-left">
+              <div className="flex items-center justify-between border-b border-[#ECE7E1] px-6 py-4 sticky top-0 bg-white">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-[#D4AF37]" />
                   <h3 className="font-heading text-lg font-bold text-[#1E1E1E]">Edit Proyek Pernikahan</h3>
                 </div>
-                <button
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="rounded-full p-1 text-[#666666] hover:bg-[#FAF7F2] hover:text-[#1E1E1E] transition-colors"
-                >
+                <button onClick={() => setIsEditModalOpen(false)} className="rounded-full p-1 text-[#666666] hover:bg-[#FAF7F2]">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -889,74 +832,42 @@ export default function ProjectDetailPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Nama Mempelai Wanita</label>
-                    <input
-                      type="text"
-                      required
-                      value={editBrideName}
-                      onChange={(e) => setEditBrideName(e.target.value)}
-                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
-                    />
+                    <input type="text" required value={editBrideName} onChange={(e) => setEditBrideName(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Nama Mempelai Pria</label>
-                    <input
-                      type="text"
-                      required
-                      value={editGroomName}
-                      onChange={(e) => setEditGroomName(e.target.value)}
-                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
-                    />
+                    <input type="text" required value={editGroomName} onChange={(e) => setEditGroomName(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Tanggal Pernikahan</label>
-                    <input
-                      type="date"
-                      required
-                      value={editWeddingDate}
-                      onChange={(e) => setEditWeddingDate(e.target.value)}
-                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
-                    />
+                    <input type="date" required value={editWeddingDate} onChange={(e) => setEditWeddingDate(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Jumlah Tamu</label>
-                    <input
-                      type="number"
-                      value={editGuestCount}
-                      onChange={(e) => setEditGuestCount(e.target.value)}
-                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
-                    />
+                    <input type="number" value={editGuestCount} onChange={(e) => setEditGuestCount(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Venue</label>
-                  <input
-                    type="text"
-                    required
-                    value={editVenue}
-                    onChange={(e) => setEditVenue(e.target.value)}
-                    className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
-                  />
+                  <input type="text" required value={editVenue} onChange={(e) => setEditVenue(e.target.value)}
+                    className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Total Anggaran (IDR)</label>
-                    <input
-                      type="number"
-                      required
-                      value={editBudgetTotal}
-                      onChange={(e) => setEditBudgetTotal(e.target.value)}
-                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none"
-                    />
+                    <input type="number" required value={editBudgetTotal} onChange={(e) => setEditBudgetTotal(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Status Proyek</label>
-                    <select
-                      value={editStatus}
-                      onChange={(e) => setEditStatus(e.target.value)}
-                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none text-[#1E1E1E]"
-                    >
+                    <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none text-[#1E1E1E]">
                       <option value="inquiry">Inquiry</option>
                       <option value="planning">Perencanaan</option>
                       <option value="dp_paid">DP Paid</option>
@@ -965,28 +876,52 @@ export default function ProjectDetailPage() {
                     </select>
                   </div>
                 </div>
+
+                {/* Koordinator Lapangan — DINAMIS */}
+                {orgUsers.length > 0 && (
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666] mb-1.5">
+                      Koordinator Lapangan (Tim WO)
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {orgUsers.map((u) => {
+                        const isSelected = editAssignedStaff.includes(u.id);
+                        return (
+                          <button key={u.id} type="button" onClick={() => handleToggleEditStaff(u.id)}
+                            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all ${
+                              isSelected ? "border-[#D4AF37] bg-[#FAF7F2] text-[#1E1E1E]" : "border-[#ECE7E1] bg-white text-[#666666] hover:border-[#D4AF37]/50"
+                            }`}
+                          >
+                            <div className={`h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                              isSelected ? "bg-[#D4AF37] text-white" : "bg-[#FAF7F2] text-[#D4AF37] border border-[#ECE7E1]"
+                            }`}>
+                              {u.full_name[0]}
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold leading-tight">{u.full_name}</p>
+                              <p className="text-[9px] capitalize text-[#999]">{u.role}</p>
+                            </div>
+                            {isSelected && <UserCheck className="h-3.5 w-3.5 text-[#D4AF37] ml-auto shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Catatan / Tema</label>
-                  <textarea
-                    rows={2}
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    className="mt-1.5 block w-full rounded-2xl border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2.5 text-xs focus:border-[#D4AF37] focus:outline-none resize-none"
-                  />
+                  <textarea rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)}
+                    className="mt-1.5 block w-full rounded-2xl border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2.5 text-xs focus:border-[#D4AF37] focus:outline-none resize-none" />
                 </div>
-                <div className="flex justify-end gap-2 border-t border-[#ECE7E1] pt-4 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditModalOpen(false)}
-                    className="rounded-full border border-[#ECE7E1] bg-white px-4 py-2 text-xs font-semibold text-[#666666] hover:bg-[#FAF7F2] transition-colors cursor-pointer"
-                  >
+                <div className="flex justify-end gap-2 border-t border-[#ECE7E1] pt-4 mt-2">
+                  <button type="button" onClick={() => setIsEditModalOpen(false)}
+                    className="rounded-full border border-[#ECE7E1] bg-white px-4 py-2 text-xs font-semibold text-[#666666] hover:bg-[#FAF7F2] transition-colors cursor-pointer">
                     Batal
                   </button>
-                  <button
-                    type="submit"
-                    className="rounded-full bg-[#1E1E1E] px-5 py-2 text-xs font-semibold text-white hover:scale-[1.01] transition-transform flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span>Simpan Perubahan</span>
+                  <button type="submit"
+                    className="rounded-full bg-[#1E1E1E] px-5 py-2 text-xs font-semibold text-white hover:scale-[1.01] transition-transform flex items-center gap-1.5 cursor-pointer">
+                    Simpan Perubahan
                   </button>
                 </div>
               </form>
@@ -994,6 +929,257 @@ export default function ProjectDetailPage() {
           </div>
         )}
       </AnimatePresence>
+
+
+      {/* ══════════════════════════════════════════════════════════ */}
+      {/* MODAL: TAMBAH JADWAL RUNDOWN                               */}
+      {/* ══════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {isRundownModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsRundownModalOpen(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ duration: 0.2, ease: "easeOut" }}
+              className="relative w-full max-w-md overflow-y-auto max-h-[90vh] rounded-2xl border border-[#ECE7E1] bg-white shadow-elevated z-10"
+            >
+              <div className="flex items-center justify-between border-b border-[#ECE7E1] px-6 py-4 sticky top-0 bg-white">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-[#D4AF37]" />
+                  <h3 className="font-heading text-lg font-bold text-[#1E1E1E]">Tambah Jadwal Rundown</h3>
+                </div>
+                <button onClick={() => setIsRundownModalOpen(false)} className="rounded-full p-1 text-[#666666] hover:bg-[#FAF7F2]">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <form onSubmit={handleRundownSubmit} className="p-6 space-y-4 text-left">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Nama Acara / Agenda <span className="text-rose-500">*</span></label>
+                  <input type="text" required placeholder="Contoh: Akad Nikah" value={rundownTitle} onChange={(e) => setRundownTitle(e.target.value)}
+                    className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Waktu (WIB) <span className="text-rose-500">*</span></label>
+                    <input type="time" required value={rundownTime} onChange={(e) => setRundownTime(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Kategori</label>
+                    <select value={rundownCategory} onChange={(e) => setRundownCategory(e.target.value as any)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none text-[#1E1E1E]">
+                      <option value="preparation">Persiapan</option>
+                      <option value="ceremony">Prosesi</option>
+                      <option value="reception">Resepsi</option>
+                      <option value="vendor">Vendor</option>
+                      <option value="lainnya">Lainnya</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Lokasi</label>
+                  <input type="text" placeholder="Contoh: Ballroom A, Lantai 2" value={rundownLocation} onChange={(e) => setRundownLocation(e.target.value)}
+                    className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">PIC / Koordinator</label>
+                  <select value={rundownPic} onChange={(e) => setRundownPic(e.target.value)}
+                    className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none text-[#1E1E1E]">
+                    <option value="">— Pilih koordinator —</option>
+                    {orgUsers.map((u) => (
+                      <option key={u.id} value={u.full_name}>{u.full_name} ({u.role})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Deskripsi / Keterangan</label>
+                  <textarea rows={2} placeholder="Catatan tambahan untuk acara ini..." value={rundownDesc} onChange={(e) => setRundownDesc(e.target.value)}
+                    className="mt-1.5 block w-full rounded-2xl border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2.5 text-xs focus:border-[#D4AF37] focus:outline-none resize-none" />
+                </div>
+                <div className="flex justify-end gap-2 border-t border-[#ECE7E1] pt-4">
+                  <button type="button" onClick={() => setIsRundownModalOpen(false)}
+                    className="rounded-full border border-[#ECE7E1] bg-white px-4 py-2 text-xs font-semibold text-[#666666] hover:bg-[#FAF7F2] transition-colors cursor-pointer">
+                    Batal
+                  </button>
+                  <button type="submit" disabled={isRundownSubmitting}
+                    className="rounded-full bg-[#1E1E1E] px-5 py-2 text-xs font-semibold text-white hover:scale-[1.01] transition-transform disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+                    {isRundownSubmitting ? "Menyimpan..." : "Simpan Jadwal"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+
+      {/* ══════════════════════════════════════════════════════════ */}
+      {/* MODAL: TAMBAH TUGAS CHECKLIST                              */}
+      {/* ══════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {isTaskModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsTaskModalOpen(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ duration: 0.2, ease: "easeOut" }}
+              className="relative w-full max-w-md overflow-y-auto max-h-[90vh] rounded-2xl border border-[#ECE7E1] bg-white shadow-elevated z-10"
+            >
+              <div className="flex items-center justify-between border-b border-[#ECE7E1] px-6 py-4 sticky top-0 bg-white">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="h-5 w-5 text-[#D4AF37]" />
+                  <h3 className="font-heading text-lg font-bold text-[#1E1E1E]">Tambah Tugas</h3>
+                </div>
+                <button onClick={() => setIsTaskModalOpen(false)} className="rounded-full p-1 text-[#666666] hover:bg-[#FAF7F2]">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <form onSubmit={handleTaskSubmit} className="p-6 space-y-4 text-left">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Nama Tugas <span className="text-rose-500">*</span></label>
+                  <input type="text" required placeholder="Contoh: Konfirmasi menu katering" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)}
+                    className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Batas Tanggal</label>
+                    <input type="date" value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Prioritas</label>
+                    <select value={taskPriority} onChange={(e) => setTaskPriority(e.target.value as any)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none text-[#1E1E1E]">
+                      <option value="low">Rendah</option>
+                      <option value="medium">Sedang</option>
+                      <option value="high">Tinggi</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">PIC / Penanggung Jawab</label>
+                  <select value={taskAssignee} onChange={(e) => setTaskAssignee(e.target.value)}
+                    className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none text-[#1E1E1E]">
+                    <option value="">— Pilih koordinator —</option>
+                    {orgUsers.map((u) => (
+                      <option key={u.id} value={u.full_name}>{u.full_name} ({u.role})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Deskripsi</label>
+                  <textarea rows={2} placeholder="Catatan tambahan..." value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)}
+                    className="mt-1.5 block w-full rounded-2xl border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2.5 text-xs focus:border-[#D4AF37] focus:outline-none resize-none" />
+                </div>
+                <div className="flex justify-end gap-2 border-t border-[#ECE7E1] pt-4">
+                  <button type="button" onClick={() => setIsTaskModalOpen(false)}
+                    className="rounded-full border border-[#ECE7E1] bg-white px-4 py-2 text-xs font-semibold text-[#666666] hover:bg-[#FAF7F2] transition-colors cursor-pointer">
+                    Batal
+                  </button>
+                  <button type="submit" disabled={isTaskSubmitting}
+                    className="rounded-full bg-[#1E1E1E] px-5 py-2 text-xs font-semibold text-white hover:scale-[1.01] transition-transform disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+                    {isTaskSubmitting ? "Menyimpan..." : "Simpan Tugas"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+
+      {/* ══════════════════════════════════════════════════════════ */}
+      {/* MODAL: CATAT KAS / PEMBAYARAN                              */}
+      {/* ══════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {isPaymentModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsPaymentModalOpen(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ duration: 0.2, ease: "easeOut" }}
+              className="relative w-full max-w-md overflow-y-auto max-h-[90vh] rounded-2xl border border-[#ECE7E1] bg-white shadow-elevated z-10"
+            >
+              <div className="flex items-center justify-between border-b border-[#ECE7E1] px-6 py-4 sticky top-0 bg-white">
+                <div className="flex items-center gap-2">
+                  <Receipt className="h-5 w-5 text-[#D4AF37]" />
+                  <h3 className="font-heading text-lg font-bold text-[#1E1E1E]">Catat Kas / Transaksi</h3>
+                </div>
+                <button onClick={() => setIsPaymentModalOpen(false)} className="rounded-full p-1 text-[#666666] hover:bg-[#FAF7F2]">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <form onSubmit={handlePaymentSubmit} className="p-6 space-y-4 text-left">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Nominal (IDR) <span className="text-rose-500">*</span></label>
+                  <div className="relative mt-1.5">
+                    <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-xs text-[#666666] font-bold">Rp</span>
+                    <input type="number" required placeholder="Contoh: 75000000" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)}
+                      className="block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 py-2 pl-9 pr-4 text-xs focus:border-[#D4AF37] focus:outline-none" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Jenis Transaksi</label>
+                    <select value={paymentType} onChange={(e) => setPaymentType(e.target.value as any)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none text-[#1E1E1E]">
+                      <option value="dp">DP (Down Payment)</option>
+                      <option value="pelunasan">Pelunasan</option>
+                      <option value="vendor">Pembayaran Vendor</option>
+                      <option value="pengeluaran">Pengeluaran</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Status</label>
+                    <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value as any)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none text-[#1E1E1E]">
+                      <option value="menunggu">Menunggu</option>
+                      <option value="dibayar">Sudah Dibayar</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Tanggal Bayar</label>
+                    <input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Jatuh Tempo</label>
+                    <input type="date" value={paymentDueDate} onChange={(e) => setPaymentDueDate(e.target.value)}
+                      className="mt-1.5 block w-full rounded-full border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2 text-xs focus:border-[#D4AF37] focus:outline-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666]">Keterangan / Catatan</label>
+                  <textarea rows={2} placeholder="Contoh: DP 30% paket premium" value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)}
+                    className="mt-1.5 block w-full rounded-2xl border border-[#ECE7E1] bg-[#FAF7F2]/40 px-4 py-2.5 text-xs focus:border-[#D4AF37] focus:outline-none resize-none" />
+                </div>
+                <div className="flex justify-end gap-2 border-t border-[#ECE7E1] pt-4">
+                  <button type="button" onClick={() => setIsPaymentModalOpen(false)}
+                    className="rounded-full border border-[#ECE7E1] bg-white px-4 py-2 text-xs font-semibold text-[#666666] hover:bg-[#FAF7F2] transition-colors cursor-pointer">
+                    Batal
+                  </button>
+                  <button type="submit" disabled={isPaymentSubmitting}
+                    className="rounded-full bg-[#1E1E1E] px-5 py-2 text-xs font-semibold text-white hover:scale-[1.01] transition-transform disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+                    {isPaymentSubmitting ? "Menyimpan..." : "Simpan Transaksi"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </AppLayout>
   );
 }
