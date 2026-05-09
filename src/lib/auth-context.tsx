@@ -23,7 +23,7 @@ interface AuthContextType {
   isTrialExpired: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  completeOnboarding: (orgName: string, location: string, teamSize: string) => Promise<void>;
+  completeOnboarding: (orgName: string, location: string, teamSize: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   updateProfile: (updated: Partial<UserProfile>) => Promise<void>;
 }
@@ -256,62 +256,114 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const completeOnboarding = async (orgName: string, location: string, teamSize: string) => {
-    if (!user) return;
+  const completeOnboarding = async (orgName: string, location: string, teamSize: string): Promise<{ success: boolean; error?: string }> => {
+    if (!user) return { success: false, error: "Tidak ada sesi pengguna." };
     setIsLoading(true);
 
-    let trialEndsAt = user.trialEndsAt ?? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const trialEndsAt = user.trialEndsAt ?? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const slug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-    // Panggil RPC atomic — satu fungsi yang handle insert org + upsert user sekaligus,
-    // berjalan dengan SECURITY DEFINER sehingga tidak terkendala RLS timing.
+    let dbSuccess = false;
+
     if (isSupabaseConfigured()) {
+      // ── LAYER 1: Coba RPC complete_onboarding (SECURITY DEFINER, atomic) ──
       try {
-        const slug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        const { data: rpcData, error: rpcError } = await supabase.rpc("complete_onboarding", {
+          p_org_name:  orgName,
+          p_slug:      slug,
+          p_full_name: user.name,
+          p_email:     user.email,
+        });
 
-        const { data: rpcData, error: rpcError } = await supabase.rpc(
-          "complete_onboarding",
-          {
-            p_org_name:  orgName,
-            p_slug:      slug,
-            p_full_name: user.name,
-            p_email:     user.email,
-          }
-        );
-
-        if (rpcError) {
-          console.error("[completeOnboarding] RPC error:", rpcError.message);
-        } else if (rpcData) {
-          console.log("[completeOnboarding] RPC success:", rpcData);
-          // Gunakan trial_ends_at yang dikembalikan server
-          if (rpcData.trial_ends_at) {
-            trialEndsAt = rpcData.trial_ends_at;
-          }
+        if (!rpcError && rpcData) {
+          console.log("[onboarding] RPC success:", rpcData);
+          dbSuccess = true;
+        } else {
+          console.warn("[onboarding] RPC failed:", rpcError?.message, "— mencoba layer 2");
         }
-      } catch (err) {
-        console.error("[completeOnboarding] Unexpected error:", err);
+      } catch (e) {
+        console.warn("[onboarding] RPC exception:", e, "— mencoba layer 2");
+      }
+
+      // ── LAYER 2: Fallback — insert manual jika RPC belum terpasang ──
+      if (!dbSuccess) {
+        try {
+          // Pastikan session aktif
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            // Coba refresh session
+            await supabase.auth.refreshSession();
+          }
+
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (!authUser) {
+            setIsLoading(false);
+            return { success: false, error: "Sesi tidak valid. Silakan login ulang." };
+          }
+
+          // Insert organization
+          const { data: orgData, error: orgError } = await supabase
+            .from("organizations")
+            .insert({ name: orgName, slug, plan: "trial", trial_ends_at: trialEndsAt })
+            .select("id")
+            .single();
+
+          if (orgError) {
+            console.error("[onboarding] insert org error:", orgError.message);
+            setIsLoading(false);
+            return {
+              success: false,
+              error: `Gagal membuat organisasi: ${orgError.message}. Pastikan SQL migration sudah dijalankan di Supabase.`,
+            };
+          }
+
+          // Upsert user row dengan org_id
+          const { error: userError } = await supabase
+            .from("users")
+            .upsert(
+              { id: authUser.id, email: user.email, full_name: user.name, role: "owner", org_id: orgData.id },
+              { onConflict: "id" }
+            );
+
+          if (userError) {
+            console.error("[onboarding] upsert user error:", userError.message);
+            setIsLoading(false);
+            return { success: false, error: `Gagal menyimpan profil: ${userError.message}` };
+          }
+
+          console.log("[onboarding] layer-2 manual insert success, org_id:", orgData.id);
+          dbSuccess = true;
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error("[onboarding] layer-2 exception:", msg);
+          setIsLoading(false);
+          return { success: false, error: `Terjadi kesalahan: ${msg}` };
+        }
+      }
+
+      if (!dbSuccess) {
+        setIsLoading(false);
+        return { success: false, error: "Gagal menyimpan data ke database. Periksa konfigurasi Supabase." };
       }
     }
 
-    const updatedUser = {
+    // ── Simpan ke localStorage (selalu, sebagai cache lokal) ──
+    const updatedUser: UserProfile = {
       ...user,
       orgName,
       location,
       teamSize,
       onboardingCompleted: true,
-      plan: "trial" as const,
+      plan: "trial",
       trialEndsAt,
     };
 
-    // Update active session
     localStorage.setItem("wedora_active_session", JSON.stringify(updatedUser));
     setUser(updatedUser);
 
-    // Update in users list (add user if not already present)
     const usersRaw = localStorage.getItem("wedora_users");
     const users: UserProfile[] = usersRaw ? JSON.parse(usersRaw) : [];
-    const existingIndex = users.findIndex(
-      (u) => u.email.toLowerCase() === user.email.toLowerCase()
-    );
+    const existingIndex = users.findIndex((u) => u.email.toLowerCase() === user.email.toLowerCase());
     if (existingIndex >= 0) {
       users[existingIndex] = updatedUser;
     } else {
@@ -320,6 +372,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("wedora_users", JSON.stringify(users));
 
     setIsLoading(false);
+    return { success: true };
   };
 
   const logout = () => {

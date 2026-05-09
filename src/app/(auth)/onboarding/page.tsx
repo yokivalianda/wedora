@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, ArrowRight, Building, MapPin, Users } from "lucide-react";
+import { Sparkles, ArrowRight, Building, MapPin, Users, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 
 export default function OnboardingPage() {
@@ -12,13 +12,12 @@ export default function OnboardingPage() {
   const [location, setLocation] = useState("");
   const [teamSize, setTeamSize] = useState("1-5");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    // If not logged in, redirect to login
     if (!isAuthenticated) {
       router.push("/login");
     } else if (user?.onboardingCompleted) {
-      // If already completed, go to dashboard
       router.push("/dashboard");
     }
   }, [isAuthenticated, user, router]);
@@ -26,12 +25,17 @@ export default function OnboardingPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError("");
 
-    await completeOnboarding(orgName, location, teamSize);
+    const result = await completeOnboarding(orgName, location, teamSize);
     setIsLoading(false);
-    router.push("/dashboard");
-  };
 
+    if (result.success) {
+      router.push("/dashboard");
+    } else {
+      setError(result.error ?? "Terjadi kesalahan. Silakan coba lagi.");
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-[#FAF7F2] items-center justify-center px-4 sm:px-6 lg:px-8">
@@ -47,6 +51,16 @@ export default function OnboardingPage() {
             Sesuaikan Wedora dengan identitas bisnis Wedding Organizer Anda
           </p>
         </div>
+
+        {error && (
+          <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-semibold mb-1">Gagal menyimpan workspace</p>
+              <p className="text-xs leading-relaxed">{error}</p>
+            </div>
+          </div>
+        )}
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4 rounded-md">
@@ -124,6 +138,10 @@ export default function OnboardingPage() {
             >
               {isLoading ? (
                 <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
                   Menyiapkan Workspace...
                 </span>
               ) : (
