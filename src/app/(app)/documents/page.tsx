@@ -421,7 +421,7 @@ export default function DocumentsPage() {
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666] mb-1.5">
                       Pilih File{" "}
                       <span className="normal-case font-normal text-[#999]">
-                        (Maks. 10 MB — PDF, DOC, XLS, JPG, PNG, dll)
+                        (Maks. 5 MB — PDF, DOC, XLS, JPG, PNG, dll)
                       </span>
                     </label>
 
