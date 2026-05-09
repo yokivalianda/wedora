@@ -50,8 +50,8 @@ export default function VendorsPage() {
     if (!name || !contactName || !contactPhone) return;
 
     const newVendor: Vendor = {
-      id: `vendor-gen-${Date.now()}`,
-      org_id: "org-001",
+      id: crypto.randomUUID ? crypto.randomUUID() : `vendor-gen-${Date.now()}`,
+      org_id: null,
       name,
       category,
       contact_name: contactName,

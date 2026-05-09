@@ -646,15 +646,36 @@ export const vendorService = {
     let created = vendor;
     if (isSupabaseConfigured()) {
       try {
+        // Generate UUID if ID is not valid UUID format
+        const generateUUID = () => {
+          if (typeof crypto !== "undefined" && crypto.randomUUID) {
+            return crypto.randomUUID();
+          }
+          return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
+        };
+        const isValidUUID = (id: string) => {
+          return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+        };
+        const vendorId = isValidUUID(vendor.id) ? vendor.id : generateUUID();
         const orgId = await getCurrentOrgId();
+
         const { data, error } = await supabase
           .from("vendors")
           .insert({
-            id: vendor.id,
+            id: vendorId,
             org_id: orgId,
             name: vendor.name,
             category: vendor.category,
+            contact_name: vendor.contact_name || null,
+            contact_phone: vendor.contact_phone || null,
+            contact_email: vendor.contact_email || null,
             rating: vendor.rating || 5,
+            price_range: vendor.price_range || null,
+            notes: vendor.notes || null,
             created_at: vendor.created_at || new Date().toISOString()
           })
           .select()
@@ -663,7 +684,11 @@ export const vendorService = {
           console.error("Supabase vendor insert error:", JSON.stringify(error, null, 2));
           throw new Error(`Failed to create vendor: ${error.message || JSON.stringify(error)}`);
         }
-        if (data) created = data as Vendor;
+        if (data) {
+          created = data as Vendor;
+        } else {
+          created = { ...vendor, id: vendorId };
+        }
       } catch (err: any) {
         console.error("Failed to create vendor in Supabase:", err);
         throw new Error(err?.message || "Failed to create vendor in Supabase");
@@ -685,7 +710,12 @@ export const vendorService = {
         const updateData: any = {};
         if (vendor.name !== undefined) updateData.name = vendor.name;
         if (vendor.category !== undefined) updateData.category = vendor.category;
+        if (vendor.contact_name !== undefined) updateData.contact_name = vendor.contact_name;
+        if (vendor.contact_phone !== undefined) updateData.contact_phone = vendor.contact_phone;
+        if (vendor.contact_email !== undefined) updateData.contact_email = vendor.contact_email;
         if (vendor.rating !== undefined) updateData.rating = vendor.rating;
+        if (vendor.price_range !== undefined) updateData.price_range = vendor.price_range;
+        if (vendor.notes !== undefined) updateData.notes = vendor.notes;
         
         const { data, error } = await supabase
           .from("vendors")
