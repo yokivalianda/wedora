@@ -4,7 +4,23 @@
 -- Jalankan file ini di Supabase Dashboard → SQL Editor
 -- Ini akan menghapus SEMUA policy yang ada dan membuat ulang
 -- dengan benar untuk memastikan isolasi data antar akun.
+--
+-- URUTAN EKSEKUSI YANG BENAR:
+--   1. fix-rls-migration.sql  ← file ini
+--   2. onboarding-rpc.sql     ← RPC function untuk onboarding
 -- ============================================================
+
+-- ============================================================
+-- STEP 0: PASTIKAN KOLOM trial_ends_at ADA DI ORGANIZATIONS
+-- (aman dijalankan berulang kali / idempotent)
+-- ============================================================
+
+ALTER TABLE public.organizations
+  ADD COLUMN IF NOT EXISTS trial_ends_at timestamptz DEFAULT (now() + interval '14 days');
+
+-- Pastikan kolom plan default ke 'trial' untuk akun baru
+ALTER TABLE public.organizations
+  ALTER COLUMN plan SET DEFAULT 'trial';
 
 -- ============================================================
 -- STEP 1: DROP SEMUA POLICY LAMA

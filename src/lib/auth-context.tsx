@@ -210,14 +210,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               role: "owner",
             });
             if (insertError) {
-              console.warn("Failed to insert into public.users table:", insertError.message);
-              // If insert fails due to RLS, try upsert approach or log for debugging
-              console.warn("User ID used:", userId);
+              // Insert mungkin gagal jika RLS belum setup atau row sudah ada — tidak apa-apa,
+              // row akan di-upsert saat complete_onboarding() RPC dipanggil nanti.
+              console.warn("[register] public.users insert skipped/failed (will be handled at onboarding):", insertError.message);
             } else {
-              console.log("[register] Successfully inserted user with id:", userId);
+              console.log("[register] Successfully pre-inserted user with id:", userId);
             }
           } catch (e) {
-            console.warn("Failed to insert into public.users table, continuing with auth user: ", e);
+            console.warn("[register] Could not pre-insert public.users row, will retry at onboarding:", e);
           }
         }
       }
@@ -260,70 +260,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     setIsLoading(true);
 
-    // 1. Try to insert organization and update user profile in Supabase
+    let trialEndsAt = user.trialEndsAt ?? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Panggil RPC atomic — satu fungsi yang handle insert org + upsert user sekaligus,
+    // berjalan dengan SECURITY DEFINER sehingga tidak terkendala RLS timing.
     if (isSupabaseConfigured()) {
       try {
-        // Get current auth user to use correct id
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        
-        if (!authUser) {
-          console.warn("[completeOnboarding] No authenticated user found in Supabase");
-        }
-        
-        const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-        const { data: orgData, error: orgError } = await supabase
-          .from("organizations")
-          .insert({
-            name: orgName,
-            slug: orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-            plan: "trial",
-            trial_ends_at: trialEndsAt,
-          })
-          .select()
-          .single();
+        const slug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-        if (orgData && !orgError && authUser) {
-          // First ensure the user row exists (it might not if register insert failed)
-          const { data: existingUser } = await supabase
-            .from("users")
-            .select("id")
-            .eq("id", authUser.id)
-            .single();
-
-          if (!existingUser) {
-            // User row doesn't exist yet, create it with org_id
-            const { error: insertErr } = await supabase.from("users").insert({
-              id: authUser.id,
-              email: user.email,
-              full_name: user.name,
-              role: "owner",
-              org_id: orgData.id,
-            });
-            if (insertErr) {
-              console.warn("Failed to insert user during onboarding:", insertErr.message);
-            } else {
-              console.log("[completeOnboarding] Created user with org_id:", orgData.id);
-            }
-          } else {
-            // User row exists, update org_id
-            const { error: updateError } = await supabase
-              .from("users")
-              .update({
-                org_id: orgData.id,
-              })
-              .eq("id", authUser.id);
-            
-            if (updateError) {
-              console.warn("Failed to update user org_id:", updateError.message);
-            } else {
-              console.log("[completeOnboarding] Updated user org_id to:", orgData.id);
-            }
+        const { data: rpcData, error: rpcError } = await supabase.rpc(
+          "complete_onboarding",
+          {
+            p_org_name:  orgName,
+            p_slug:      slug,
+            p_full_name: user.name,
+            p_email:     user.email,
           }
-        } else if (orgError) {
-          console.warn("Failed to create organization:", orgError.message);
+        );
+
+        if (rpcError) {
+          console.error("[completeOnboarding] RPC error:", rpcError.message);
+        } else if (rpcData) {
+          console.log("[completeOnboarding] RPC success:", rpcData);
+          // Gunakan trial_ends_at yang dikembalikan server
+          if (rpcData.trial_ends_at) {
+            trialEndsAt = rpcData.trial_ends_at;
+          }
         }
       } catch (err) {
-        console.warn("Supabase onboarding update failed, continuing with local persistence: ", err);
+        console.error("[completeOnboarding] Unexpected error:", err);
       }
     }
 
@@ -333,8 +298,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       location,
       teamSize,
       onboardingCompleted: true,
-      plan: user.plan ?? ("trial" as const),
-      trialEndsAt: user.trialEndsAt ?? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      plan: "trial" as const,
+      trialEndsAt,
     };
 
     // Update active session
