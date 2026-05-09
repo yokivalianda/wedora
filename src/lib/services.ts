@@ -791,22 +791,26 @@ export const documentService = {
 
   async create(document: Document): Promise<Document> {
     let created = document;
+
+    const generateUUID = () => {
+      if (typeof crypto !== "undefined" && crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    };
+    const isValidUUID = (id: string) => {
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+    };
+    // Always generate a proper UUID (even for localStorage mode)
+    const docId = isValidUUID(document.id) ? document.id : generateUUID();
+    created = { ...document, id: docId };
+
     if (isSupabaseConfigured()) {
       try {
-        const generateUUID = () => {
-          if (typeof crypto !== "undefined" && crypto.randomUUID) {
-            return crypto.randomUUID();
-          }
-          return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-            const r = (Math.random() * 16) | 0;
-            const v = c === "x" ? r : (r & 0x3) | 0x8;
-            return v.toString(16);
-          });
-        };
-        const isValidUUID = (id: string) => {
-          return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
-        };
-        const docId = isValidUUID(document.id) ? document.id : generateUUID();
         const orgId = await getCurrentOrgId();
 
         const { data, error } = await supabase
@@ -827,16 +831,14 @@ export const documentService = {
           .single();
         if (error) {
           console.error("[documentService.create] Supabase insert error:", JSON.stringify(error, null, 2));
-          throw new Error(`Failed to create document: ${error.message || JSON.stringify(error)}`);
+          throw new Error(`Gagal menyimpan dokumen: ${error.message || JSON.stringify(error)}`);
         }
         if (data) {
           created = data as Document;
-        } else {
-          created = { ...document, id: docId };
         }
       } catch (err: any) {
         console.error("[documentService.create] Failed:", err);
-        throw new Error(err?.message || "Failed to create document in Supabase");
+        throw new Error(err?.message || "Gagal menyimpan dokumen ke Supabase");
       }
     }
     if (shouldWriteLocalStorage()) {

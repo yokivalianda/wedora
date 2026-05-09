@@ -42,3 +42,72 @@ export const getCurrentUserOrgId = async (): Promise<string | null> => {
     return null;
   }
 };
+
+// ============================================================
+// STORAGE HELPERS — Upload file to Supabase Storage
+// ============================================================
+
+export const STORAGE_BUCKET = "documents";
+export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+export interface UploadResult {
+  url: string;
+  path: string;
+  size: string;
+}
+
+/**
+ * Format byte size to human-readable string (e.g. "2.4 MB")
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${bytes} B`;
+}
+
+/**
+ * Upload a file to Supabase Storage bucket "documents".
+ * Validates max file size (10 MB).
+ * Returns public URL, storage path, and formatted size.
+ * Throws an error with a user-friendly Indonesian message on failure.
+ */
+export const uploadFileToStorage = async (
+  file: File,
+  folder: string = "uploads"
+): Promise<UploadResult> => {
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase belum dikonfigurasi. Upload file tidak tersedia.");
+  }
+
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    throw new Error(
+      `Ukuran file terlalu besar. Maksimal 10 MB, file Anda ${formatFileSize(file.size)}.`
+    );
+  }
+
+  // Build a unique path: folder/timestamp-filename
+  const ext = file.name.split(".").pop() ?? "bin";
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const path = `${folder}/${Date.now()}-${safeName}`;
+
+  const { data, error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (error) {
+    throw new Error(`Gagal mengunggah file: ${error.message}`);
+  }
+
+  const { data: urlData } = supabase.storage
+    .from(STORAGE_BUCKET)
+    .getPublicUrl(data.path);
+
+  return {
+    url: urlData.publicUrl,
+    path: data.path,
+    size: formatFileSize(file.size),
+  };
+};
