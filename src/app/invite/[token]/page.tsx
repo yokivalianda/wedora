@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Sparkles, Users, ArrowRight, AlertCircle } from "lucide-react";
 
@@ -28,7 +28,6 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function InvitePage() {
   const params = useParams();
-  const router = useRouter();
   const token = params?.token as string;
 
   const [payload, setPayload] = useState<InvitePayload | null>(null);

@@ -1,7 +1,7 @@
 "use client";
 
 import AppLayout from "@/components/layout/AppLayout";
-import { User, Building, Plus, Users, Check, Clock, AlertTriangle, Crown, X, Mail, ChevronDown, Trash2, Send, Copy, MessageCircle, Link2 } from "lucide-react";
+import { User, Building, Plus, Users, Check, Clock, AlertTriangle, Crown, X, Mail, ChevronDown, Trash2, Send, Copy, MessageCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { isDemoAccount } from "@/lib/demo";

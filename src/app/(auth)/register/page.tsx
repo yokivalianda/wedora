@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, ArrowRight, Lock, Mail, User, Eye, EyeOff, Users } from "lucide-react";
@@ -22,7 +22,8 @@ function decodeInviteToken(token: string): InvitePayload | null {
   }
 }
 
-export default function RegisterPage() {
+// Inner component yang pakai useSearchParams — harus dibungkus Suspense
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { register, isAuthenticated, user } = useAuth();
@@ -38,7 +39,6 @@ export default function RegisterPage() {
   useEffect(() => {
     const inviteToken = searchParams?.get("token");
     const emailParam = searchParams?.get("email");
-    const orgParam = searchParams?.get("org");
 
     if (inviteToken) {
       const decoded = decodeInviteToken(inviteToken);
@@ -241,5 +241,18 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Wrapper dengan Suspense — wajib karena RegisterForm pakai useSearchParams()
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen bg-[#FAF7F2] items-center justify-center">
+        <div className="h-8 w-8 rounded-full border-2 border-[#D4AF37] border-t-transparent animate-spin" />
+      </div>
+    }>
+      <RegisterForm />
+    </Suspense>
   );
 }
