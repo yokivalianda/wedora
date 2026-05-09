@@ -5,9 +5,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/layout/AppLayout";
-import { mockUsers } from "@/lib/mock-data";
-import { projectService, taskService, paymentService, timelineService, documentService } from "@/lib/services";
-import { WeddingProject, Task, Payment, TimelineEvent, Document, DocumentType } from "@/types";
+import { projectService, taskService, paymentService, timelineService, documentService, userService } from "@/lib/services";
+import { WeddingProject, Task, Payment, TimelineEvent, Document, DocumentType, User } from "@/types";
 import { 
   formatCurrency, 
   formatDate,
@@ -51,6 +50,7 @@ export default function ProjectDetailPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [orgUsers, setOrgUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Active sub-tab
@@ -76,12 +76,14 @@ export default function ProjectDetailPage() {
       paymentService.getAll(),
       timelineService.getAll(id),
       documentService.getAll(),
-    ]).then(([projData, taskData, payData, timelineData, docData]) => {
+      userService.getAll(),
+    ]).then(([projData, taskData, payData, timelineData, docData, userData]) => {
       setProject(projData);
       setTasks(taskData.filter((t) => t.project_id === id));
       setPayments(payData.filter((p) => p.project_id === id));
       setTimelineEvents(timelineData);
       setDocuments(docData.filter((d) => d.project_id === id));
+      setOrgUsers(userData);
       setLoading(false);
     });
   }, [id]);
@@ -189,8 +191,8 @@ export default function ProjectDetailPage() {
   // Budget progress
   const progress = calculateProgress(project.budget_used, project.budget_total);
 
-  // Assigned Staff Members Info
-  const assignedStaffList = mockUsers.filter(u => project.assigned_staff.includes(u.id));
+  // Assigned Staff Members Info — from dynamic org users
+  const assignedStaffList = orgUsers.filter(u => project.assigned_staff.includes(u.id));
 
   return (
     <AppLayout>

@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured, getCurrentUserOrgId } from "./supabase";
-import { WeddingProject, Task, Payment, Vendor, Document, Activity, TimelineEvent } from "@/types";
-import { mockProjects, mockTasks, mockPayments, mockVendors, mockDocuments, mockActivities, mockTimeline } from "./mock-data";
+import { WeddingProject, Task, Payment, Vendor, Document, Activity, TimelineEvent, User } from "@/types";
+import { mockProjects, mockTasks, mockPayments, mockVendors, mockDocuments, mockActivities, mockTimeline, mockUsers } from "./mock-data";
 import { isDemoAccount } from "./demo";
 
 if (typeof window !== "undefined" && !isSupabaseConfigured()) {
@@ -1159,4 +1159,38 @@ export const timelineService = {
     }
     return true;
   }
+};
+
+
+// ============================================================
+// 8. SERVICES FOR USERS (ORG MEMBERS / STAFF)
+// ============================================================
+export const userService = {
+  /**
+   * Fetch all users that belong to the same organisation as the
+   * currently authenticated user.
+   * - Supabase configured  → query public.users filtered by org_id
+   * - Demo account         → return mockUsers
+   * - Supabase not config  → return mockUsers as fallback
+   */
+  async getAll(): Promise<User[]> {
+    if (isSupabaseConfigured()) {
+      try {
+        const orgId = await getCurrentOrgId();
+        if (orgId) {
+          const { data, error } = await supabase
+            .from("users")
+            .select("*")
+            .eq("org_id", orgId)
+            .order("full_name", { ascending: true });
+          if (!error && data && data.length > 0) return data as User[];
+        }
+        // org_id not set yet (e.g. onboarding not complete) — fall through
+      } catch (err) {
+        console.warn("[userService.getAll] Failed to fetch from Supabase:", err);
+      }
+    }
+    // Fallback: mock data for demo/local mode
+    return mockUsers as User[];
+  },
 };
