@@ -2,16 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Sidebar from "./Sidebar";
 import MobileNav from "./MobileNav";
 import TopBar from "./TopBar";
 import CommandPalette from "./CommandPalette";
 import { useAuth } from "@/lib/auth-context";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Clock, AlertTriangle } from "lucide-react";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, trialDaysLeft, isTrialExpired } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -67,6 +68,45 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] print:bg-white">
+      {/* Trial Banner */}
+      {user?.plan === "trial" && trialDaysLeft !== null && (
+        <div
+          className={`print:hidden w-full px-4 py-2.5 text-center text-sm font-medium flex items-center justify-center gap-2 ${
+            isTrialExpired
+              ? "bg-red-600 text-white"
+              : trialDaysLeft <= 3
+              ? "bg-orange-500 text-white"
+              : "bg-[#1E1E1E] text-white"
+          }`}
+        >
+          {isTrialExpired ? (
+            <>
+              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+              <span>
+                Masa trial Anda telah berakhir.{" "}
+                <Link href="/#harga" className="underline font-semibold hover:opacity-80">
+                  Pilih paket sekarang
+                </Link>{" "}
+                untuk melanjutkan akses.
+              </span>
+            </>
+          ) : (
+            <>
+              <Clock className="h-4 w-4 flex-shrink-0" />
+              <span>
+                Anda sedang dalam masa trial gratis —{" "}
+                <span className="font-semibold">
+                  {trialDaysLeft} hari tersisa.
+                </span>{" "}
+                <Link href="/#harga" className="underline hover:opacity-80">
+                  Upgrade sekarang
+                </Link>
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Sidebar (Desktop) */}
       <div className="print:hidden">
         <Sidebar />

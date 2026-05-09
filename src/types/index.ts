@@ -39,12 +39,15 @@ export type DocumentType =
 // USER & ORGANIZATION
 // ============================================================
 
+export type PlanType = "trial" | "starter" | "professional" | "agency";
+
 export interface Organization {
   id: string;
   name: string;
   slug: string;
   logo_url?: string;
-  plan: "starter" | "professional" | "agency";
+  plan: PlanType;
+  trial_ends_at?: string | null;
   created_at: string;
 }
 

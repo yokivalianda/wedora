@@ -11,12 +11,16 @@ export interface UserProfile {
   location?: string;
   teamSize?: string;
   onboardingCompleted?: boolean;
+  plan?: "trial" | "starter" | "professional" | "agency";
+  trialEndsAt?: string | null;
 }
 
 interface AuthContextType {
   user: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  trialDaysLeft: number | null;
+  isTrialExpired: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   completeOnboarding: (orgName: string, location: string, teamSize: string) => Promise<void>;
@@ -43,6 +47,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+
+  // Compute trial days left from user profile
+  const trialDaysLeft: number | null = (() => {
+    if (!user?.trialEndsAt || user.plan !== "trial") return null;
+    const diff = new Date(user.trialEndsAt).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  })();
+
+  const isTrialExpired: boolean =
+    user?.plan === "trial" && trialDaysLeft !== null && trialDaysLeft <= 0;
 
   useEffect(() => {
     // Load active session on mount
@@ -94,6 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             location: localUser?.location || undefined,
             teamSize: localUser?.teamSize || undefined,
             onboardingCompleted: supabaseOnboarded || localOnboarded,
+            plan: (profileData?.organizations?.plan as UserProfile["plan"]) ?? localUser?.plan ?? "trial",
+            trialEndsAt: profileData?.organizations?.trial_ends_at ?? localUser?.trialEndsAt ?? null,
           };
 
           localStorage.setItem("wedora_active_session", JSON.stringify(loggedUser));
@@ -216,10 +232,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: "Email sudah terdaftar." };
       }
 
+      // Set trial 14 hari dari sekarang
+      const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
       const newUser: UserProfile = {
         name,
         email,
         onboardingCompleted: false,
+        plan: "trial",
+        trialEndsAt,
       };
       saveCredential(email, password);
 
@@ -249,12 +270,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.warn("[completeOnboarding] No authenticated user found in Supabase");
         }
         
+        const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
         const { data: orgData, error: orgError } = await supabase
           .from("organizations")
           .insert({
             name: orgName,
             slug: orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-            plan: "professional",
+            plan: "trial",
+            trial_ends_at: trialEndsAt,
           })
           .select()
           .single();
@@ -310,6 +333,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       location,
       teamSize,
       onboardingCompleted: true,
+      plan: user.plan ?? ("trial" as const),
+      trialEndsAt: user.trialEndsAt ?? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
     };
 
     // Update active session
@@ -424,6 +449,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isAuthenticated: !!user,
         isLoading,
+        trialDaysLeft,
+        isTrialExpired,
         login,
         register,
         completeOnboarding,

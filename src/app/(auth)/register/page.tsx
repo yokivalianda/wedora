@@ -54,6 +54,13 @@ export default function RegisterPage() {
           <p className="mt-2 text-sm text-[#666666]">
             Daftarkan akun Wedora baru untuk bisnis WO Anda
           </p>
+          {/* Trial badge */}
+          <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#FAF7F2] border border-[#D4AF37]/40 px-4 py-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" />
+            <span className="text-xs font-semibold text-[#D4AF37]">
+              Gratis 14 hari — tanpa kartu kredit
+            </span>
+          </div>
         </div>
 
         {error && (
