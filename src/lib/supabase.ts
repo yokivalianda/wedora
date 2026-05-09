@@ -81,14 +81,16 @@ export const uploadFileToStorage = async (
 
   if (file.size > MAX_FILE_SIZE_BYTES) {
     throw new Error(
-      `Ukuran file terlalu besar. Maksimal 10 MB, file Anda ${formatFileSize(file.size)}.`
+      `Ukuran file terlalu besar. Maksimal 5 MB, file Anda ${formatFileSize(file.size)}.`
     );
   }
 
-  // Build a unique path: folder/timestamp-filename
-  const ext = file.name.split(".").pop() ?? "bin";
+  // Build a unique path: {userId}/{folder}/{timestamp}-{filename}
+  // This allows RLS policies to isolate files per user via folder name
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id ?? "anonymous";
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `${folder}/${Date.now()}-${safeName}`;
+  const path = `${userId}/${folder}/${Date.now()}-${safeName}`;
 
   const { data, error } = await supabase.storage
     .from(STORAGE_BUCKET)
